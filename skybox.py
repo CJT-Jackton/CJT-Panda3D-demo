@@ -55,15 +55,15 @@ class Skybox(ShowBase):
         self.skyTex = loader.loadCubeMap("textures/skybox/Twilight_#.jpg")
 
         # Light setting
-        #self.ambientLight = render.attachNewNode(AmbientLight("ambientLight"))
-        #self.ambientLight.node().setColor((0.1, 0.1, 0.1, 1.0))
+        self.ambientLight = render.attachNewNode(AmbientLight("ambientLight"))
+        self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
 
-        #self.sun = render.attachNewNode(DirectionalLight("sun"))
-        #self.sun.node().setColor((1.0, 1.0, 1.0, 1.0))
-        #self.sun.node().setDirection(LVector3(1, -1, -1))
+        self.sun = render.attachNewNode(DirectionalLight("sun"))
+        self.sun.node().setColor((1.0, 0.76, 0.45, 1.0))
+        self.sun.node().setDirection(LVector3(1, -1, -0.22))
 
-        #render.setLight(self.ambientLight)
-        #render.setLight(self.sun)
+        render.setLight(self.ambientLight)
+        render.setLight(self.sun)
 
         self.environ = self.loader.loadModel("models/environment")
         self.environ.reparentTo(self.render)
@@ -85,7 +85,8 @@ class Skybox(ShowBase):
         Y = deltaTime * CameraSpeed * (self.keys['w'] - self.keys['s'])
 
         self.camera.setPos(self.camera, -X, Y, 0)
-        self.skybox.setPos(self.camera.getPos())
+        #self.skybox.setPos(self.camera.getPos())
+        self.updateSkybox()
 
         if base.mouseWatcherNode.hasMouse():
             mpos = base.mouseWatcherNode.getMouse()  # get the mouse position
@@ -102,6 +103,9 @@ class Skybox(ShowBase):
             self.camera.setHpr(zhpr)
 
         return Task.cont
+
+    def updateSkybox(self):
+    	self.skybox.setPos(self.camera.getPos())
 
     def zoom(self, offset):
         newFov = self.len.getFov().x + offset * zoomRate
