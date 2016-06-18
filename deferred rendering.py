@@ -60,8 +60,13 @@ class Skybox(ShowBase):
         #self.gSpecular = Texture()
         #self.gIrradiance = Texture()
         #self.gDepth-Stencil = Texture()
+        #self.gDepth-Stencil.setFormat(Texture.FDepthStencil)
 
-        
+        self.gBuffer.addRenderTexture(self.gDiffuse,
+        	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
+        self.gBuffer.addRenderTexture(self.gNormal,
+        	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPAuxRgba0)
+
 
 
         self.shader_skybox = Shader.load(Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
