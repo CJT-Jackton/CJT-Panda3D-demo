@@ -30,7 +30,7 @@ MouseSensitivity = 100
 CameraSpeed = 25
 zoomRate = 5
  
-class Skybox(ShowBase):
+class DeferredRendering(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
         self.win.setClearColor(LVecBase4(0.0, 0.0, 0.0, 1))
@@ -40,19 +40,22 @@ class Skybox(ShowBase):
         	self.keys[key] = 0
         	self.accept(key, self.push_key, [key, 1])
         	self.accept('%s-up' %key, self.push_key, [key, 0])
-        self.accept('wheel_up', self.zoom, [1])
-        self.accept('wheel_down', self.zoom, [-1])
         self.accept('escape', __import__('sys').exit, [0])
 
-        self.len = self.cam.node().getLens()
         self.camera.setPos(0, -15, 5)
 
         self.disableMouse()
         self.recenterMouse()
 
+        self.SetShaders()
+
         # Setup buffers
         self.gBuffer = self.makeFBO("G-Buffer", 1)
         self.lightBuffer = self.makeFBO("Light Buffer", 0)
+
+        self.gBuffer.setSort(1)
+        self.lightBuffer.setSort(2)
+        self.win.setSort(3)
 
         # G-Buffer render texture
         self.gDiffuse = Texture()
@@ -61,15 +64,46 @@ class Skybox(ShowBase):
         #self.gIrradiance = Texture()
         #self.gDepth-Stencil = Texture()
         #self.gDepth-Stencil.setFormat(Texture.FDepthStencil)
+        self.gFinal = Texture()
 
         self.gBuffer.addRenderTexture(self.gDiffuse,
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
         self.gBuffer.addRenderTexture(self.gNormal,
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPAuxRgba0)
 
+        self.lightBuffer.addRenderTexture(self.gFinal,
+        	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
 
+        lens = self.cam.node().getLens()
+        
+        self.gBufferMask = 1
+        self.lightMask = 2
 
-        self.shader_skybox = Shader.load(Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
+        self.gBufferCam = self.makeCamera(self.gBuffer, lens = lens, scene = render, mask = self.gBufferMask)
+        self.lightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.lightMask)
+
+        #self.cam.node().setActive(0)
+
+        self.gBufferCam.node().getDisplayRegion(0).disableClears()
+        self.lightCam.node().getDisplayRegion(0).disableClears()
+        self.cam.node().getDisplayRegion(0).disableClears()
+        self.cam2d.node().getDisplayRegion(0).disableClears()
+        self.gBuffer.disableClears()
+        #self.win.disableClears()
+
+        self.gBuffer.setClearColorActive(1)
+        self.gBuffer.setClearDepthActive(1)
+        self.lightBuffer.setClearColorActive(1)
+        self.lightBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['gBuffer'])
+        self.gBufferCam.node().setInitialState(tmpnode.getState())
+
+        #tmpnode = NodePath(PandaNode("tmp node"))
+        #tmpnode.setShader(shaders['light'])
+        #tmpnode.setShaderInput()
+        #self.lightCam.node().setInitialState(tmpnode.getState())
 
         self.skyTex = loader.loadCubeMap("textures/skybox/Twilight_#.jpg")
 
@@ -77,6 +111,15 @@ class Skybox(ShowBase):
         self.SetModels()
 
         self.taskMgr.add(self.updateCamera, "Update Camera")
+
+    def SetShaders(self):
+    	self.shaders = {}
+        self.shaders['gBuffer'] = Shader.load(
+        	Shader.SLGLSL, "shaders/deferred_rendering_geometry_vert.glsl", "shaders/deferred_rendering_geometry_frag.glsl")
+        self.shaders['light'] = Shader.load(
+        	Shader.SLGLSL, "shaders/deferred_rendering_geometry_vert.glsl", "shaders/deferred_rendering_geometry_frag.glsl")
+        self.shaders['skybox'] = Shader.load(
+        	Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
 
     def SetLights(self):
     	self.ambientLight = render.attachNewNode(AmbientLight("ambientLight"))
@@ -97,7 +140,7 @@ class Skybox(ShowBase):
 
         self.skybox = self.loader.loadModel("models/skybox")
         self.skybox.reparentTo(self.render)
-        self.skybox.setShader(self.shader_skybox)
+        self.skybox.setShader(self.shaders['skybox'])
         self.skybox.setShaderInput("skybox", self.skyTex)
         self.skybox.setAttrib(DepthTestAttrib.make(RenderAttrib.MLessEqual))
 
@@ -142,16 +185,6 @@ class Skybox(ShowBase):
     def updateSkybox(self):
     	self.skybox.setPos(self.camera.getPos())
 
-    def zoom(self, offset):
-        newFov = self.len.getFov().x + offset * zoomRate
-
-        if newFov < 10:
-            newFov = 10
-        elif newFov > 120:
-            newFov = 120
-
-        self.len.setFov(newFov)
-
     def push_key(self, key, value):
     	self.keys[key] = value
 
@@ -160,5 +193,5 @@ class Skybox(ShowBase):
               int(self.win.getProperties().getXSize() / 2),
               int(self.win.getProperties().getYSize() / 2))
 
-app = Skybox()
+app = DeferredRendering()
 app.run()
