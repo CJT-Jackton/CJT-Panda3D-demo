@@ -35,13 +35,6 @@ class DeferredRendering(ShowBase):
         ShowBase.__init__(self)
         self.win.setClearColor(LVecBase4(0.0, 0.0, 0.0, 1))
 
-        self.keys = {}
-        for key in ['w', 'a', 's', 'd']:
-        	self.keys[key] = 0
-        	self.accept(key, self.push_key, [key, 1])
-        	self.accept('%s-up' %key, self.push_key, [key, 0])
-        self.accept('escape', __import__('sys').exit, [0])
-
         self.camera.setPos(0, -15, 5)
 
         self.disableMouse()
@@ -58,14 +51,16 @@ class DeferredRendering(ShowBase):
         self.win.setSort(3)
 
         # G-Buffer render texture
+        self.gDepthStencil = Texture()
+        self.gDepthStencil.setFormat(Texture.FDepthStencil)
         self.gDiffuse = Texture()
         self.gNormal = Texture()
         #self.gSpecular = Texture()
         #self.gIrradiance = Texture()
-        #self.gDepth-Stencil = Texture()
-        #self.gDepth-Stencil.setFormat(Texture.FDepthStencil)
         self.gFinal = Texture()
 
+        self.gBuffer.addRenderTexture(self.gDepthStencil,
+        	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPDepthStencil)
         self.gBuffer.addRenderTexture(self.gDiffuse,
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
         self.gBuffer.addRenderTexture(self.gNormal,
@@ -82,17 +77,19 @@ class DeferredRendering(ShowBase):
         self.gBufferCam = self.makeCamera(self.gBuffer, lens = lens, scene = render, mask = self.gBufferMask)
         self.lightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.lightMask)
 
-        #self.cam.node().setActive(0)
+        self.cam.node().setActive(0)
 
         self.gBufferCam.node().getDisplayRegion(0).disableClears()
         self.lightCam.node().getDisplayRegion(0).disableClears()
         self.cam.node().getDisplayRegion(0).disableClears()
         self.cam2d.node().getDisplayRegion(0).disableClears()
         self.gBuffer.disableClears()
-        #self.win.disableClears()
+        self.win.disableClears()
 
         self.gBuffer.setClearColorActive(1)
         self.gBuffer.setClearDepthActive(1)
+        self.gBuffer.setClearActive(GraphicsOutput.RTPAuxRgba0, 1)
+        self.gBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
         self.lightBuffer.setClearColorActive(1)
         self.lightBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
 
@@ -100,24 +97,47 @@ class DeferredRendering(ShowBase):
         tmpnode.setShader(self.shaders['gBuffer'])
         self.gBufferCam.node().setInitialState(tmpnode.getState())
 
-        #tmpnode = NodePath(PandaNode("tmp node"))
-        #tmpnode.setShader(shaders['light'])
-        #tmpnode.setShaderInput()
-        #self.lightCam.node().setInitialState(tmpnode.getState())
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['light'])
+        tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
+        tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
+        tmpnode.setShaderInput("gNormal", self.gNormal)
+        self.lightCam.node().setInitialState(tmpnode.getState())
+
+        render.setState(RenderState.makeEmpty())
+
+        # debug
+        self.card = self.lightBuffer.getTextureCard()
+        self.card.setTexture(self.gDiffuse)
+        self.card.reparentTo(render2d)
 
         self.skyTex = loader.loadCubeMap("textures/skybox/Twilight_#.jpg")
 
         self.SetLights()
         self.SetModels()
 
+        self.keys = {}
+        for key in ['w', 'a', 's', 'd']:
+        	self.keys[key] = 0
+        	self.accept(key, self.push_key, [key, 1])
+        	self.accept('%s-up' %key, self.push_key, [key, 0])
+        self.accept('1', self.set_card, [self.gDepthStencil])
+        self.accept('2', self.set_card, [self.gDiffuse])
+        self.accept('3', self.set_card, [self.gNormal])
+        self.accept('4', self.set_card, [self.gFinal])
+        self.accept('escape', __import__('sys').exit, [0])
+
         self.taskMgr.add(self.updateCamera, "Update Camera")
+
+    def set_card(self, tex):
+    	self.card.setTexture(tex)
 
     def SetShaders(self):
     	self.shaders = {}
         self.shaders['gBuffer'] = Shader.load(
-        	Shader.SLGLSL, "shaders/deferred_rendering_geometry_vert.glsl", "shaders/deferred_rendering_geometry_frag.glsl")
+        	Shader.SLGLSL, "shaders/gbuffer_vert.glsl", "shaders/gbuffer_frag.glsl")
         self.shaders['light'] = Shader.load(
-        	Shader.SLGLSL, "shaders/deferred_rendering_geometry_vert.glsl", "shaders/deferred_rendering_geometry_frag.glsl")
+        	Shader.SLGLSL, "shaders/deferred_light_vert.glsl", "shaders/deferred_light_frag.glsl")
         self.shaders['skybox'] = Shader.load(
         	Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
 
@@ -143,12 +163,14 @@ class DeferredRendering(ShowBase):
         self.skybox.setShader(self.shaders['skybox'])
         self.skybox.setShaderInput("skybox", self.skyTex)
         self.skybox.setAttrib(DepthTestAttrib.make(RenderAttrib.MLessEqual))
+        self.skybox.hide(self.gBufferMask)
+        self.skybox.show(self.lightMask)
 
-    def makeFBO(self, name, auxrgba):
+    def makeFBO(self, name, auxrgba, rgbabit = 8):
     	winprops = WindowProperties()
     	props = FrameBufferProperties()
     	props.setRgbColor(True)
-    	props.setRgbaBits(8, 8, 8, 8)
+    	props.setRgbaBits(rgbabit, rgbabit, rgbabit, rgbabit)
     	props.setDepthBits(1)
     	props.setAuxRgba(auxrgba)
         return self.graphicsEngine.makeOutput(
