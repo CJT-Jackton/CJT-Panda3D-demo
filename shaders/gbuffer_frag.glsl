@@ -7,7 +7,7 @@ layout (location = 0) out vec4 gDiffuse;
 layout (location = 1) out vec4 gNormal;
 //layout (location = 2) out vec4 gSpecular;
 //layout (location = 3) out vec4 gIrradiance;
-//layout (location = 4) out vec4 gDepth-Stencil;
+//layout (location = 4) out vec4 gDepthStencil;
 
 uniform sampler2D p3d_Texture0;
 
