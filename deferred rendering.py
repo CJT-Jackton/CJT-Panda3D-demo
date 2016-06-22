@@ -18,6 +18,7 @@ from direct.showbase.ShowBase import ShowBase
 from panda3d.core import *
 from direct.task.Task import Task
 from direct.actor.Actor import Actor
+from direct.filter.FilterManager import FilterManager
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.DirectObject import DirectObject
 from direct.showbase.BufferViewer import BufferViewer
@@ -97,7 +98,12 @@ class DeferredRendering(ShowBase):
         tmpnode.setShader(self.shaders['gBuffer'])
         self.gBufferCam.node().setInitialState(tmpnode.getState())
 
-        tmpnode = NodePath(PandaNode("tmp node"))
+        #tmpnode = NodePath(PandaNode("tmp node"))
+        #tmpnode.setShader(self.shaders['light'])
+        #tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
+        #tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
+        #tmpnode.setShaderInput("gNormal", self.gNormal)
+        tmpnode = self.lightBuffer.getTextureCard()
         tmpnode.setShader(self.shaders['light'])
         tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
         tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
@@ -157,6 +163,8 @@ class DeferredRendering(ShowBase):
         self.environ.reparentTo(self.render)
         self.environ.setScale(0.25, 0.25, 0.25)
         self.environ.setPos(-8, 42, 0)
+        self.environ.hide(self.lightMask)
+        self.environ.show(self.gBufferMask)
 
         self.skybox = self.loader.loadModel("models/skybox")
         self.skybox.reparentTo(self.render)
@@ -165,6 +173,33 @@ class DeferredRendering(ShowBase):
         self.skybox.setAttrib(DepthTestAttrib.make(RenderAttrib.MLessEqual))
         self.skybox.hide(self.gBufferMask)
         self.skybox.show(self.lightMask)
+
+    def renderQuad(self):
+        vdata = GeomVertexData("vdata", GeomVertexFormat.getV3t2(),Geom.UHStatic)
+        vertex = GeomVertexWriter(vdata, 'vertex')
+        texcoord = GeomVertexWriter(vdata, 'texcoord')
+        vertex.addData3f(-1, 1, 0)
+        texcoord.addData2f(0, 1)
+
+        vertex.addData3f(-1, -1, 0)
+        texcoord.addData2f(0, 0)
+
+        vertex.addData3f(1, -1, 0)
+        texcoord.addData2f(1, 0)
+
+        vertex.addData3f(1, 1, 0)
+        texcoord.addData2f(1, 1)
+
+        prim = GeomTriangles(Geom.UHStatic)
+
+        prim.addVertex(0, 1, 2)
+        prim.addVertex(0, 2, 3)
+
+        geom = Geom(vdata)
+        geom.addPrimitive(prim)
+
+        quad = Geomnode('quad')
+        quad.addGeom(geom)
 
     def makeFBO(self, name, auxrgba, rgbabit = 8):
     	winprops = WindowProperties()
