@@ -13,9 +13,11 @@ uniform sampler2D gNormal;
 void main()
 {
 	//vec3 SPos = fPos.xyz / fPos.w;
-	//vec2 fTexCoord = fPos.xy * vec2(0.5, 0.5) + vec2(0.5, 0.5);
+	//vec2 fTexCoord = (fPos * 0.5 + 0.5).xy;
 	vec3 color = texture(gNormal, fTexCoord).rgb;
 
+	//vec3 color = (fPos * 0.5 + 0.5).rgb;
+	//color.b = 0.0;
+
     fColor = vec4(color, 1.0f);
-    //fColor = vec4(1.0f, 0.0f, 1.0f, 1.0f);
 }
