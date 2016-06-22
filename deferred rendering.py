@@ -6,7 +6,7 @@
 
 # Deferred rendering pipeline using deferred shading.
 
-from panda3d.core import loadPrcFileData
+from panda3d.core import *
 loadPrcFileData('', 'window-title CJT Deferred Rendering Demo')
 loadPrcFileData('', 'win-size 1280 720')
 loadPrcFileData('', 'sync-video false')
@@ -15,7 +15,6 @@ loadPrcFileData('', 'texture-minfilter linear-mipmap-linear')
 loadPrcFileData('', 'cursor-hidden true')
  
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import *
 from direct.task.Task import Task
 from direct.actor.Actor import Actor
 from direct.filter.FilterManager import FilterManager
@@ -98,12 +97,12 @@ class DeferredRendering(ShowBase):
         tmpnode.setShader(self.shaders['gBuffer'])
         self.gBufferCam.node().setInitialState(tmpnode.getState())
 
-        #tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode = NodePath(PandaNode("tmp node"))
         #tmpnode.setShader(self.shaders['light'])
         #tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
         #tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
         #tmpnode.setShaderInput("gNormal", self.gNormal)
-        tmpnode = self.lightBuffer.getTextureCard()
+        #tmpnode = self.lightBuffer.getTextureCard()
         tmpnode.setShader(self.shaders['light'])
         tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
         tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
@@ -112,13 +111,17 @@ class DeferredRendering(ShowBase):
 
         render.setState(RenderState.makeEmpty())
 
+        cm = CardMaker("cardmaker")
+
+
         # debug
         self.card = self.lightBuffer.getTextureCard()
-        self.card.setTexture(self.gDiffuse)
+        self.card.setTexture(self.gFinal)
         self.card.reparentTo(render2d)
 
         self.skyTex = loader.loadCubeMap("textures/skybox/Twilight_#.jpg")
 
+        self.makeQuad()
         self.SetLights()
         self.SetModels()
 
@@ -159,47 +162,61 @@ class DeferredRendering(ShowBase):
         render.setLight(self.sun)
 
     def SetModels(self):
+        self.gBufferRoot = NodePath(PandaNode("gBuffer root"))
+        self.gBufferRoot.reparentTo(self.render)
+        self.gBufferRoot.hide(BitMask32(self.lightMask))
+
+        self.lightRoot = NodePath(PandaNode("light root"))
+        self.lightRoot.reparentTo(self.render)
+        self.lightRoot.hide(BitMask32(self.gBufferMask))
+
     	self.environ = self.loader.loadModel("models/environment")
-        self.environ.reparentTo(self.render)
+        self.environ.reparentTo(self.gBufferRoot)
         self.environ.setScale(0.25, 0.25, 0.25)
         self.environ.setPos(-8, 42, 0)
-        self.environ.hide(self.lightMask)
-        self.environ.show(self.gBufferMask)
+
+        #self.quad = self.gBuffer.getTextureCard()
+        self.quad.setTexture(self.gFinal)
+        #self.quad.reparentTo(self.lightRoot)
+        #self.quad.hide(self.gBufferMask)
+        #self.quad.show(self.lightMask)
 
         self.skybox = self.loader.loadModel("models/skybox")
-        self.skybox.reparentTo(self.render)
+        self.skybox.reparentTo(self.lightRoot)
         self.skybox.setShader(self.shaders['skybox'])
         self.skybox.setShaderInput("skybox", self.skyTex)
         self.skybox.setAttrib(DepthTestAttrib.make(RenderAttrib.MLessEqual))
-        self.skybox.hide(self.gBufferMask)
-        self.skybox.show(self.lightMask)
+        #self.skybox.hide(self.gBufferMask)
+        #self.skybox.show(self.lightMask)
 
-    def renderQuad(self):
+    def makeQuad(self):
         vdata = GeomVertexData("vdata", GeomVertexFormat.getV3t2(),Geom.UHStatic)
         vertex = GeomVertexWriter(vdata, 'vertex')
         texcoord = GeomVertexWriter(vdata, 'texcoord')
-        vertex.addData3f(-1, 1, 0)
+        vertex.addData3f(-1, 0, 1)
         texcoord.addData2f(0, 1)
 
-        vertex.addData3f(-1, -1, 0)
+        vertex.addData3f(-1, 0, -1)
         texcoord.addData2f(0, 0)
 
-        vertex.addData3f(1, -1, 0)
+        vertex.addData3f(1, 0, -1)
         texcoord.addData2f(1, 0)
 
-        vertex.addData3f(1, 1, 0)
+        vertex.addData3f(1, 0, 1)
         texcoord.addData2f(1, 1)
 
         prim = GeomTriangles(Geom.UHStatic)
 
-        prim.addVertex(0, 1, 2)
-        prim.addVertex(0, 2, 3)
+        prim.addVertices(0, 1, 2)
+        prim.addVertices(0, 2, 3)
 
         geom = Geom(vdata)
         geom.addPrimitive(prim)
 
-        quad = Geomnode('quad')
-        quad.addGeom(geom)
+        node = GeomNode('quad')
+        node.addGeom(geom)
+
+        self.quad = self.render.attachNewNode(node)
 
     def makeFBO(self, name, auxrgba, rgbabit = 8):
     	winprops = WindowProperties()
