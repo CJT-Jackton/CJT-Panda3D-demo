@@ -59,6 +59,9 @@ class DeferredRendering(ShowBase):
         #self.gIrradiance = Texture()
         self.gFinal = Texture()
 
+        self.texScale = LVecBase2f(self.calTexScale(self.win.getProperties().getXSize()),
+                                   self.calTexScale(self.win.getProperties().getYSize()))
+
         self.gBuffer.addRenderTexture(self.gDepthStencil,
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPDepthStencil)
         self.gBuffer.addRenderTexture(self.gDiffuse,
@@ -98,21 +101,15 @@ class DeferredRendering(ShowBase):
         self.gBufferCam.node().setInitialState(tmpnode.getState())
 
         tmpnode = NodePath(PandaNode("tmp node"))
-        #tmpnode.setShader(self.shaders['light'])
-        #tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
-        #tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
-        #tmpnode.setShaderInput("gNormal", self.gNormal)
-        #tmpnode = self.lightBuffer.getTextureCard()
         tmpnode.setShader(self.shaders['light'])
+        tmpnode.setShaderInput("TexScale", self.texScale)
         tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
         tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
         tmpnode.setShaderInput("gNormal", self.gNormal)
+        tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
         self.lightCam.node().setInitialState(tmpnode.getState())
 
         render.setState(RenderState.makeEmpty())
-
-        cm = CardMaker("cardmaker")
-
 
         # debug
         self.card = self.lightBuffer.getTextureCard()
@@ -175,6 +172,10 @@ class DeferredRendering(ShowBase):
         self.environ.setScale(0.25, 0.25, 0.25)
         self.environ.setPos(-8, 42, 0)
 
+        self.sphere = self.loader.loadModel("models/sphere")
+        self.sphere.reparentTo(self.gBufferRoot)
+        self.sphere.setPos(0, 0, 5)
+
         #self.quad = self.gBuffer.getTextureCard()
         self.quad.setTexture(self.gFinal)
         self.quad.reparentTo(self.lightCam)
@@ -230,7 +231,21 @@ class DeferredRendering(ShowBase):
         	GraphicsPipe.BFSizeTrackHost | GraphicsPipe.BFCanBindEvery |
         	GraphicsPipe.BFRttCumulative | GraphicsPipe.BFRefuseWindow,
         	self.win.getGsg(), self.win)
- 
+
+    def calTexScale(self, length):
+        pow_of_2 = (0, 1, 2, 4, 8, 16 ,32 ,64, 128, 256, 512, 1024, 2048, 4096)
+
+        if length > 4096 or length < 0:
+            return float(1.0)
+
+        i = 13
+        while pow_of_2[i] >= length and i >= 0:
+            if pow_of_2[i - 1] < length:
+                return float(length) / pow_of_2[i]
+            i -= 1
+
+        return float(1.0)
+
     def updateCamera(self, task):
         deltaTime = globalClock.getDt()  # To get the time (in seconds) since the last frame was drawn
 
