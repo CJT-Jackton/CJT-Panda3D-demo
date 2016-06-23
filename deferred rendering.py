@@ -177,12 +177,12 @@ class DeferredRendering(ShowBase):
 
         #self.quad = self.gBuffer.getTextureCard()
         self.quad.setTexture(self.gFinal)
-        #self.quad.reparentTo(self.lightRoot)
+        self.quad.reparentTo(self.lightCam)
         #self.quad.hide(self.gBufferMask)
         #self.quad.show(self.lightMask)
 
         self.skybox = self.loader.loadModel("models/skybox")
-        self.skybox.reparentTo(self.lightRoot)
+        #self.skybox.reparentTo(self.lightRoot)
         self.skybox.setShader(self.shaders['skybox'])
         self.skybox.setShaderInput("skybox", self.skyTex)
         self.skybox.setAttrib(DepthTestAttrib.make(RenderAttrib.MLessEqual))
