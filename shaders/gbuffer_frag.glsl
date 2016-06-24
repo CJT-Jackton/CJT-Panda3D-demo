@@ -14,6 +14,6 @@ uniform sampler2D p3d_Texture0;
 void main()
 {
 	gDiffuse = texture(p3d_Texture0, fTexCoord);
-    gNormal.rgb = normalize(fNormal);
+    gNormal.rgb = normalize(fNormal) * 0.5 + 0.5;
     gNormal.a = 1.0;
 }
