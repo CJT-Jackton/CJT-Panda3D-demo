@@ -75,15 +75,21 @@ class DeferredRendering(ShowBase):
         lens = self.cam.node().getLens()
         
         self.modelMask = 1
-        self.lightMask = 2
+        self.adLightMask = 2
+        self.psLightMask = 4
 
         self.gBufferCam = self.makeCamera(self.gBuffer, lens = lens, scene = render, mask = self.modelMask)
-        self.lightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.lightMask)
+        self.adLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.adLightMask)
+        self.psLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.psLightMask)
 
         self.cam.node().setActive(0)
 
+        self.adLightCam.node().getDisplayRegion(0).setSort(1)
+        self.psLightCam.node().getDisplayRegion(0).setSort(2)
+
         self.gBufferCam.node().getDisplayRegion(0).disableClears()
-        self.lightCam.node().getDisplayRegion(0).disableClears()
+        self.adLightCam.node().getDisplayRegion(0).disableClears()
+        self.psLightCam.node().getDisplayRegion(0).disableClears()
         self.cam.node().getDisplayRegion(0).disableClears()
         self.cam2d.node().getDisplayRegion(0).disableClears()
         self.gBuffer.disableClears()
@@ -106,8 +112,10 @@ class DeferredRendering(ShowBase):
         tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
         tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
         tmpnode.setShaderInput("gNormal", self.gNormal)
+        tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
         tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
-        self.lightCam.node().setInitialState(tmpnode.getState())
+        self.adLightCam.node().setInitialState(tmpnode.getState())
+        self.psLightCam.node().setInitialState(RenderState.makeEmpty())
 
         render.setState(RenderState.makeEmpty())
 
@@ -142,20 +150,27 @@ class DeferredRendering(ShowBase):
     	self.shaders = {}
         self.shaders['gBuffer'] = Shader.load(
         	Shader.SLGLSL, "shaders/gbuffer_vert.glsl", "shaders/gbuffer_frag.glsl")
+        self.shaders['aLight'] = Shader.load(
+            Shader.SLGLSL, "shaders/ambient_light_vert.glsl", "shaders/ambient_light_frag.glsl")
         self.shaders['dLight'] = Shader.load(
         	Shader.SLGLSL, "shaders/directional_light_vert.glsl", "shaders/directional_light_frag.glsl")
         self.shaders['skybox'] = Shader.load(
         	Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
 
     def SetLights(self):
-    	self.ambientLight = self.lightRoot.attachNewNode(AmbientLight("ambientLight"))
+    	self.ambientLight = self.adLightCam.attachNewNode(AmbientLight("ambientLight"))
         self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
+        self.ambientLight.setShader(self.shaders['aLight'])
         self.SetAmbientLightShaderInput(self.ambientLight)
+        self.ambientLight.setShaderInput("TexScale", self.texScale)
+        self.quad.instanceTo(self.ambientLight)
+        self.ambientLight.hide(BitMask32(self.modelMask | self.psLightMask))
 
-        self.sunLight = self.lightRoot.attachNewNode(DirectionalLight("sunLight"))
+        self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
         self.sunLight.node().setColor((1.0, 0.76, 0.45, 1.0))
         self.sunLight.node().setDirection(LVecBase3f(1, -1, -0.22))
         self.SetDirectionalLightShaderInput(self.sunLight)
+        self.quad.instanceTo(self.sunLight)
         print self.sunLight.node()
 
         self.pointLight = self.lightRoot.attachNewNode(PointLight("pointLight"))
@@ -170,11 +185,11 @@ class DeferredRendering(ShowBase):
     def SetModels(self):
         self.modelRoot = NodePath(PandaNode("model root"))
         self.modelRoot.reparentTo(self.render)
-        self.modelRoot.hide(BitMask32(self.lightMask))
+        self.modelRoot.hide(BitMask32(self.adLightMask | self.psLightMask))
 
         self.lightRoot = NodePath(PandaNode("light root"))
         self.lightRoot.reparentTo(self.render)
-        self.lightRoot.hide(BitMask32(self.modelMask))
+        self.lightRoot.hide(BitMask32(self.modelMask | self.adLightMask))
 
     	self.environ = self.loader.loadModel("models/environment")
         self.environ.reparentTo(self.modelRoot)
@@ -187,7 +202,7 @@ class DeferredRendering(ShowBase):
 
         #self.quad = self.gBuffer.getTextureCard()
         #self.quad.setTexture(self.gFinal)
-        self.quad.reparentTo(self.lightCam)
+        #self.quad.reparentTo(self.lightCam)
         #self.quad.setShaderInput("p3d_LightSource", self.sun)
         #self.quad.hide(self.modelMask)
         #self.quad.show(self.lightMask)
@@ -201,24 +216,24 @@ class DeferredRendering(ShowBase):
         #self.skybox.show(self.lightMask)
 
     def SetAmbientLightShaderInput(self, aLight):
-        aLight.setShaderInput("p3d_LightSource.color", aLight.node().getColor())
+        aLight.setShaderInput("AmbientLight.color", aLight.node().getColor())
 
     def SetDirectionalLightShaderInput(self, dLight):
-        dLight.setShaderInput("p3d_LightSource.color", dLight.node().getColor())
-        dLight.setShaderInput("p3d_LightSource.specular", dLight.node().getSpecularColor())
-        dLight.setShaderInput("p3d_LightSource.position", dLight.node().getDirection())
+        dLight.setShaderInput("LightSource.color", dLight.node().getColor())
+        dLight.setShaderInput("LightSource.specular", dLight.node().getSpecularColor())
+        dLight.setShaderInput("LightSource.position", dLight.node().getDirection())
 
     def SetPointLightShaderInput(self, pLight):
-        pLight.setShaderInput("p3d_LightSource.color", pLight.node().getColor())
-        pLight.setShaderInput("p3d_LightSource.specular", pLight.node().getSpecularColor())
-        pLight.setShaderInput("p3d_LightSource.position", pLight.getPos())
-        pLight.setShaderInput("p3d_LightSource.attenuation", pLight.node().getAttenuation())
+        pLight.setShaderInput("LightSource.color", pLight.node().getColor())
+        pLight.setShaderInput("LightSource.specular", pLight.node().getSpecularColor())
+        pLight.setShaderInput("LightSource.position", pLight.getPos())
+        pLight.setShaderInput("LightSource.attenuation", pLight.node().getAttenuation())
 
     def SetSpotlightShaderInput(self, sLight):
-        sLight.setShaderInput("p3d_LightSource.color", sLight.node().getColor())
-        sLight.setShaderInput("p3d_LightSource.specular", sLight.node().getSpecularColor())
-        sLight.setShaderInput("p3d_LightSource.position", sLight.getPos())
-        sLight.setShaderInput("p3d_LightSource.attenuation", sLight.node().getAttenuation())
+        sLight.setShaderInput("LightSource.color", sLight.node().getColor())
+        sLight.setShaderInput("LightSource.specular", sLight.node().getSpecularColor())
+        sLight.setShaderInput("LightSource.position", sLight.getPos())
+        sLight.setShaderInput("LightSource.attenuation", sLight.node().getAttenuation())
 
     def makeQuad(self):
         vdata = GeomVertexData("vdata", GeomVertexFormat.getV3t2(),Geom.UHStatic)
@@ -247,7 +262,7 @@ class DeferredRendering(ShowBase):
         node = GeomNode('quad')
         node.addGeom(geom)
 
-        self.quad = self.render.attachNewNode(node)
+        self.quad = NodePath(node)
 
     def makeFBO(self, name, auxrgba, rgbabit = 8):
     	winprops = WindowProperties()
