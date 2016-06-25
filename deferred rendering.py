@@ -13,7 +13,7 @@ loadPrcFileData('', 'sync-video false')
 loadPrcFileData('', 'show-frame-rate-meter true')
 loadPrcFileData('', 'texture-minfilter linear-mipmap-linear')
 loadPrcFileData('', 'cursor-hidden true')
- 
+
 from direct.showbase.ShowBase import ShowBase
 from direct.task.Task import Task
 from direct.actor.Actor import Actor
@@ -24,12 +24,12 @@ from direct.showbase.BufferViewer import BufferViewer
 from direct.interval.MetaInterval import Sequence
 import sys
 import os
-from math import *
+import math
 
 MouseSensitivity = 100
 CameraSpeed = 25
 zoomRate = 5
- 
+
 class DeferredRendering(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
@@ -73,7 +73,7 @@ class DeferredRendering(ShowBase):
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
 
         lens = self.cam.node().getLens()
-        
+
         self.modelMask = 1
         self.adLightMask = 2
         self.psLightMask = 4
@@ -154,6 +154,8 @@ class DeferredRendering(ShowBase):
             Shader.SLGLSL, "shaders/ambient_light_vert.glsl", "shaders/ambient_light_frag.glsl")
         self.shaders['dLight'] = Shader.load(
         	Shader.SLGLSL, "shaders/directional_light_vert.glsl", "shaders/directional_light_frag.glsl")
+        self.shaders['pLight'] = Shader.load(
+            Shader.SLGLSL, "shaders/point_light_vert.glsl", "shaders/point_light_frag.glsl")
         self.shaders['skybox'] = Shader.load(
         	Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
 
@@ -161,26 +163,25 @@ class DeferredRendering(ShowBase):
     	self.ambientLight = self.adLightCam.attachNewNode(AmbientLight("ambientLight"))
         self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
         self.ambientLight.setShader(self.shaders['aLight'])
-        self.SetAmbientLightShaderInput(self.ambientLight)
-        self.ambientLight.setShaderInput("TexScale", self.texScale)
+        self.SetupAmbientLight(self.ambientLight)
         self.quad.instanceTo(self.ambientLight)
-        self.ambientLight.hide(BitMask32(self.modelMask | self.psLightMask))
 
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
         self.sunLight.node().setColor((1.0, 0.76, 0.45, 1.0))
         self.sunLight.node().setDirection(LVecBase3f(1, -1, -0.22))
-        self.SetDirectionalLightShaderInput(self.sunLight)
-        self.quad.instanceTo(self.sunLight)
-        print self.sunLight.node()
+        self.SetupDirectionalLight(self.sunLight)
+        #self.quad.instanceTo(self.sunLight)
 
         self.pointLight = self.lightRoot.attachNewNode(PointLight("pointLight"))
-        self.pointLight.node().setColor((1.0, 1.0, 1.0, 1.0))
+        self.pointLight.node().setColor((1.0, 1.0, 0.0, 1.0))
         self.pointLight.node().setSpecularColor((0.0, 1.0, 0.5, 1.0))
-        self.pointLight.node().setAttenuation((0.0, 0.5, 1.0))
-        print self.pointLight.node()
-
-        #self.lightRoot.setLight(self.ambientLight)
-        #self.lightRoot.setLight(self.sun)
+        self.pointLight.setPos((0, 0, 3))
+        self.pointLight.node().setAttenuation((1.0, 0.09, 0.032))
+        self.pointLight.setShader(self.shaders['pLight'])
+        self.SetupPointLight(self.pointLight)
+        self.sphere.instanceTo(self.pointLight)
+        radius = self.calLightRadius(self.pointLight)
+        self.pointLight.setScale(radius, radius, radius)
 
     def SetModels(self):
         self.modelRoot = NodePath(PandaNode("model root"))
@@ -215,21 +216,26 @@ class DeferredRendering(ShowBase):
         #self.skybox.hide(self.modelMask)
         #self.skybox.show(self.lightMask)
 
-    def SetAmbientLightShaderInput(self, aLight):
+    def SetupAmbientLight(self, aLight):
+        aLight.setShaderInput("TexScale", self.texScale)
         aLight.setShaderInput("AmbientLight.color", aLight.node().getColor())
+        aLight.hide(BitMask32(self.modelMask | self.psLightMask))
 
-    def SetDirectionalLightShaderInput(self, dLight):
+    def SetupDirectionalLight(self, dLight):
+        dLight.setShaderInput("TexScale", self.texScale)
         dLight.setShaderInput("LightSource.color", dLight.node().getColor())
         dLight.setShaderInput("LightSource.specular", dLight.node().getSpecularColor())
         dLight.setShaderInput("LightSource.position", dLight.node().getDirection())
+        dLight.hide(BitMask32(self.modelMask | self.psLightMask))
 
-    def SetPointLightShaderInput(self, pLight):
-        pLight.setShaderInput("LightSource.color", pLight.node().getColor())
-        pLight.setShaderInput("LightSource.specular", pLight.node().getSpecularColor())
-        pLight.setShaderInput("LightSource.position", pLight.getPos())
-        pLight.setShaderInput("LightSource.attenuation", pLight.node().getAttenuation())
+    def SetupPointLight(self, pLight):
+        pLight.setShaderInput("PointLight.color", pLight.node().getColor())
+        pLight.setShaderInput("PointLight.specular", pLight.node().getSpecularColor())
+        pLight.setShaderInput("PointLight.position", pLight.getPos())
+        pLight.setShaderInput("PointLight.attenuation", pLight.node().getAttenuation())
+        pLight.hide(BitMask32(self.modelMask | self.adLightMask))
 
-    def SetSpotlightShaderInput(self, sLight):
+    def SetupSpotlight(self, sLight):
         sLight.setShaderInput("LightSource.color", sLight.node().getColor())
         sLight.setShaderInput("LightSource.specular", sLight.node().getSpecularColor())
         sLight.setShaderInput("LightSource.position", sLight.getPos())
@@ -277,6 +283,20 @@ class DeferredRendering(ShowBase):
         	GraphicsPipe.BFRttCumulative | GraphicsPipe.BFRefuseWindow,
         	self.win.getGsg(), self.win)
 
+    def calLightRadius(self, light):
+        color = light.node().getColor()
+        intensity = max(color.x, color.y, color.z)
+
+        attenuation = light.node().getAttenuation()
+        constant = attenuation.x
+        linear = attenuation.y
+        quadratic = attenuation.z
+
+        radius = (-linear + math.sqrt(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * intensity)))\
+            /(2 * quadratic)
+
+        return radius
+
     def calTexScale(self, length):
         pow_of_2 = (0, 1, 2, 4, 8, 16 ,32 ,64, 128, 256, 512, 1024, 2048, 4096)
 
@@ -323,7 +343,7 @@ class DeferredRendering(ShowBase):
     	self.keys[key] = value
 
     def recenterMouse(self):
-        self.win.movePointer(0, 
+        self.win.movePointer(0,
               int(self.win.getProperties().getXSize() / 2),
               int(self.win.getProperties().getYSize() / 2))
 
