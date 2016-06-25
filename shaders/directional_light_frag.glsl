@@ -44,15 +44,15 @@ void main()
 {
     //vec4 pos = vec4(fTexCoord, texture(gDepthStencil, fTexCoord).r, 1.0);
     vec4 albedo = texture(gDiffuse, fTexCoord);
-    vec3 normal = (texture(gNormal, fTexCoord).rgb - 0.5) * 2;
+    vec3 normal = (texture(gNormal, fTexCoord).rbg - 0.5) * 2;
 
     vec4 direction_world = vec4(LightSource.position.xyz, 1.0);
 
     vec3 direction = normalize(p3d_ViewMatrix * direction_world - p3d_ViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    //vec3 direction = normalize(p3d_ViewMatrix * direction_world).xyz;
 
     vec4 diffuse = LightSource.color * max(dot(-direction, normal), 0.0);
     vec4 color = albedo * diffuse;
 
     fColor = color;
-    //fColor = p3d_ViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
 }
