@@ -13,6 +13,7 @@ loadPrcFileData('', 'sync-video false')
 loadPrcFileData('', 'show-frame-rate-meter true')
 loadPrcFileData('', 'texture-minfilter linear-mipmap-linear')
 loadPrcFileData('', 'cursor-hidden true')
+#loadPrcFileData('', 'gl-coordinate-system default')
 
 from direct.showbase.ShowBase import ShowBase
 from direct.task.Task import Task
@@ -28,7 +29,6 @@ import math
 
 MouseSensitivity = 100
 CameraSpeed = 25
-zoomRate = 5
 
 class DeferredRendering(ShowBase):
     def __init__(self):
@@ -61,6 +61,7 @@ class DeferredRendering(ShowBase):
 
         self.texScale = LVecBase2f(self.calTexScale(self.win.getProperties().getXSize()),
                                    self.calTexScale(self.win.getProperties().getYSize()))
+        self.tranSStoVS = self.calTranSStoVS()
 
         self.gBuffer.addRenderTexture(self.gDepthStencil,
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPDepthStencil)
@@ -107,7 +108,7 @@ class DeferredRendering(ShowBase):
         self.gBufferCam.node().setInitialState(tmpnode.getState())
 
         tmpnode = NodePath(PandaNode("tmp node"))
-        tmpnode.setShader(self.shaders['dLight'])
+        #tmpnode.setShader(self.shaders['dLight'])
         tmpnode.setShaderInput("TexScale", self.texScale)
         tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
         tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
@@ -115,7 +116,7 @@ class DeferredRendering(ShowBase):
         tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
         tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
         self.adLightCam.node().setInitialState(tmpnode.getState())
-        self.psLightCam.node().setInitialState(RenderState.makeEmpty())
+        self.psLightCam.node().setInitialState(tmpnode.getState())
 
         render.setState(RenderState.makeEmpty())
 
@@ -169,8 +170,9 @@ class DeferredRendering(ShowBase):
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
         self.sunLight.node().setColor((1.0, 0.76, 0.45, 1.0))
         self.sunLight.node().setDirection(LVecBase3f(1, -1, -0.22))
+        self.sunLight.setShader(self.shaders['dLight'])
         self.SetupDirectionalLight(self.sunLight)
-        #self.quad.instanceTo(self.sunLight)
+        self.quad.instanceTo(self.sunLight)
 
         self.pointLight = self.lightRoot.attachNewNode(PointLight("pointLight"))
         self.pointLight.node().setColor((1.0, 1.0, 0.0, 1.0))
@@ -180,7 +182,8 @@ class DeferredRendering(ShowBase):
         self.pointLight.setShader(self.shaders['pLight'])
         self.SetupPointLight(self.pointLight)
         self.sphere.instanceTo(self.pointLight)
-        radius = self.calLightRadius(self.pointLight)
+        #radius = self.calLightRadius(self.pointLight)
+        radius = 5.0
         self.pointLight.setScale(radius, radius, radius)
 
     def SetModels(self):
@@ -198,15 +201,6 @@ class DeferredRendering(ShowBase):
         self.environ.setPos(-8, 42, 0)
 
         self.sphere = self.loader.loadModel("models/sphere")
-        #self.sphere.reparentTo(self.lightRoot)
-        #self.sphere.setPos(0, 0, 5)
-
-        #self.quad = self.gBuffer.getTextureCard()
-        #self.quad.setTexture(self.gFinal)
-        #self.quad.reparentTo(self.lightCam)
-        #self.quad.setShaderInput("p3d_LightSource", self.sun)
-        #self.quad.hide(self.modelMask)
-        #self.quad.show(self.lightMask)
 
         self.skybox = self.loader.loadModel("models/skybox")
         #self.skybox.reparentTo(self.lightRoot)
@@ -229,6 +223,8 @@ class DeferredRendering(ShowBase):
         dLight.hide(BitMask32(self.modelMask | self.psLightMask))
 
     def SetupPointLight(self, pLight):
+        pLight.setShaderInput("TexScale", self.texScale)
+        pLight.setShaderInput("TranSStoVS", self.tranSStoVS)
         pLight.setShaderInput("PointLight.color", pLight.node().getColor())
         pLight.setShaderInput("PointLight.specular", pLight.node().getSpecularColor())
         pLight.setShaderInput("PointLight.position", pLight.getPos())
@@ -310,6 +306,17 @@ class DeferredRendering(ShowBase):
             i -= 1
 
         return float(1.0)
+
+    def calTranSStoVS(self):
+        # Calculate the transform vector form screen-space to view-space
+        Projection = self.cam.node().getLens().getProjectionMat()
+
+        y = 0.5 * Projection[3][2]
+        x = y / Projection[0][0]
+        z = y / Projection[2][1]
+        w = -0.5 - 0.5 * Projection[1][2]
+
+        return LVecBase4f(x, y, z, w)
 
     def updateCamera(self, task):
         deltaTime = globalClock.getDt()  # To get the time (in seconds) since the last frame was drawn
