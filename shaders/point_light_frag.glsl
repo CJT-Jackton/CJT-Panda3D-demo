@@ -4,8 +4,11 @@ in vec4 fPos;
 
 layout (location = 0) out vec4 fColor;
 
+uniform mat4 p3d_ViewMatrixInverse;
 uniform mat4 p3d_ViewMatrix;
-uniform mat4 p3d_ProjectionMatrixInverse;
+uniform mat4 p3d_ModelViewMatrixInverse;
+uniform mat3 p3d_NormalMatrix;
+//uniform mat4 p3d_ProjectionMatrixInverse;
 
 uniform sampler2D gDepthStencil;
 uniform sampler2D gDiffuse;
@@ -33,23 +36,30 @@ void main()
 
     vec4 albedo = texture(gDiffuse, fTexCoord);
     vec3 normal = (texture(gNormal, fTexCoord).rbg - 0.5) * 2;
-    float depth = texture(gDepthStencil, fTexCoord).r;
+    //vec3 normal = texture(gNormal, fTexCoord).rbg;
+    float depth = texture(gDepthStencil, fTexCoord).a;
 
     //vec4 tmp = p3d_ProjectionMatrixInverse * vec4(fPos_clip.x, fPos_clip.y, depth, 1.0);
     //vec3 fPos_view = tmp.xyz / tmp.w;
-    //vec3 fPos_view = (fPos_clip.xzy * TranSStoVS.xyz) / (depth + TranSStoVS.w);
+    //vec3 fPos_view = (fPos_clip.xyz * TranSStoVS.xyz) / (depth + TranSStoVS.w);
     vec3 fPos_view = (texture(gSpecular, fTexCoord).rgb - 0.5) * 2;
+    //vec3 fPos_view = texture(gSpecular, fTexCoord).rgb;
 
-    vec4 lpos = p3d_ViewMatrix * PointLight.position;
-    vec3 lvec = vec3(lpos) - fPos_view;
+    vec4 lpos = p3d_ViewMatrix * vec4(PointLight.position.xyz, 1.0);
+    //lpos = vec4(lpos.xyz / lpos.w, 1.0);
+    vec4 lvec = lpos - vec4(fPos_view, 1.0);
+    //vec4 lvec = lpos - p3d_ViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
     float ldistance = length(lvec);
-    vec3 ldir = normalize(lvec);
+    //vec3 ldir = lvec.xyz / ldistance;
+    vec3 ldir = normalize(lvec.xyz);
 
-    float att = 1.0 / (PointLight.attenuation.x + PointLight.attenuation.y * ldistance + PointLight.attenuation.z * ldistance * ldistance);
+    float att = 1.0 / (PointLight.attenuation.x
+      + PointLight.attenuation.y * ldistance
+      + PointLight.attenuation.z * ldistance * ldistance);
 
     vec4 diffuse = PointLight.color * max(dot(normal, ldir), 0.0);
     vec4 color = albedo * diffuse;
 
-    //fColor = vec4(depth, depth, depth, 1.0);
-    fColor = color;
+    fColor = vec4(depth, depth, depth, 1.0);
+    //fColor = color;
 }
