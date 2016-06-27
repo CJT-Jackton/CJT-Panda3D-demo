@@ -12,21 +12,21 @@ const float exposure = 0.25;
 vec3 linear(vec3 color_hdr)
 {
     color_hdr *= exposure;
-	return pow(color_hdr, vec3(1.0 / gamma));
+    return pow(color_hdr, vec3(1.0 / gamma));
 }
 
 vec3 Reinhard(vec3 color_hdr)
 {
-	color_hdr *= exposure;
-	color_hdr = color_hdr / (1.0 + color_hdr);
-	return pow(color_hdr, vec3(1.0 / gamma));
+    color_hdr *= exposure;
+    color_hdr = color_hdr / (1.0 + color_hdr);
+    return pow(color_hdr, vec3(1.0 / gamma));
 }
 
 vec3 Jim_Richard(vec3 color_hdr)
 {
-	color_hdr *= exposure;
-	vec3 x = max(vec3(0.0), color_hdr - 0.0004);
-	return (x * (6.2 * x + 0.5)) / (x * (6.2 * x + 1.7) + 0.06);
+    color_hdr *= exposure;
+    vec3 x = max(vec3(0.0), color_hdr - 0.0004);
+    return (x * (6.2 * x + 0.5)) / (x * (6.2 * x + 1.7) + 0.06);
 }
 
 float A = 0.15;
@@ -38,7 +38,7 @@ float F = 0.30;
 float W = 11.2;
 vec3 Uncharted2Tonemap(vec3 x)
 {
-	return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
+    return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
 } 
 
 vec3 Filmic(vec3 color_hdr)
