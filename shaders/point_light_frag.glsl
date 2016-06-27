@@ -4,13 +4,13 @@ in vec4 fPos;
 
 layout (location = 0) out vec4 fColor;
 
-uniform mat4 p3d_ModelViewMatrix;
 uniform mat4 p3d_ViewMatrix;
+uniform mat4 p3d_ProjectionMatrixInverse;
 
 uniform sampler2D gDepthStencil;
 uniform sampler2D gDiffuse;
 uniform sampler2D gNormal;
-//uniform sampler2D gSpecular;
+uniform sampler2D gSpecular;
 //uniform sampler2D gIrradiance;
 uniform vec2 TexScale;
 uniform vec4 TranSStoVS;
@@ -33,17 +33,23 @@ void main()
 
     vec4 albedo = texture(gDiffuse, fTexCoord);
     vec3 normal = (texture(gNormal, fTexCoord).rbg - 0.5) * 2;
-    float depth = texture(gDepthStencil, fTexCoord);
+    float depth = texture(gDepthStencil, fTexCoord).r;
 
-    vec3 fPos_view = (fPos_clip.xzy * TranSStoVS.xyz) / (depth + TranSStoVS.w);
+    //vec4 tmp = p3d_ProjectionMatrixInverse * vec4(fPos_clip.x, fPos_clip.y, depth, 1.0);
+    //vec3 fPos_view = tmp.xyz / tmp.w;
+    //vec3 fPos_view = (fPos_clip.xzy * TranSStoVS.xyz) / (depth + TranSStoVS.w);
+    vec3 fPos_view = (texture(gSpecular, fTexCoord).rgb - 0.5) * 2;
 
-    vec4 lpos_view = p3d_ViewMatrix * PointLight.position;
-    vec3 lvec = vec3(lpos_view) - fPos_view;
+    vec4 lpos = p3d_ViewMatrix * PointLight.position;
+    vec3 lvec = vec3(lpos) - fPos_view;
     float ldistance = length(lvec);
     vec3 ldir = normalize(lvec);
+
+    float att = 1.0 / (PointLight.attenuation.x + PointLight.attenuation.y * ldistance + PointLight.attenuation.z * ldistance * ldistance);
 
     vec4 diffuse = PointLight.color * max(dot(normal, ldir), 0.0);
     vec4 color = albedo * diffuse;
 
+    //fColor = vec4(depth, depth, depth, 1.0);
     fColor = color;
 }
