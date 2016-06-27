@@ -43,7 +43,7 @@ class DeferredRendering(ShowBase):
         self.SetShaders()
 
         # Setup buffers
-        self.gBuffer = self.makeFBO("G-Buffer", 1)
+        self.gBuffer = self.makeFBO("G-Buffer", 2)
         self.lightBuffer = self.makeFBO("Light Buffer", 0)
 
         self.gBuffer.setSort(1)
@@ -55,7 +55,7 @@ class DeferredRendering(ShowBase):
         self.gDepthStencil.setFormat(Texture.FDepthStencil)
         self.gDiffuse = Texture()
         self.gNormal = Texture()
-        #self.gSpecular = Texture()
+        self.gSpecular = Texture()
         #self.gIrradiance = Texture()
         self.gFinal = Texture()
 
@@ -69,6 +69,8 @@ class DeferredRendering(ShowBase):
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
         self.gBuffer.addRenderTexture(self.gNormal,
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPAuxRgba0)
+        self.gBuffer.addRenderTexture(self.gSpecular,
+            GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPAuxRgba1)
 
         self.lightBuffer.addRenderTexture(self.gFinal,
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
@@ -99,6 +101,7 @@ class DeferredRendering(ShowBase):
         self.gBuffer.setClearColorActive(1)
         self.gBuffer.setClearDepthActive(1)
         self.gBuffer.setClearActive(GraphicsOutput.RTPAuxRgba0, 1)
+        self.gBuffer.setClearActive(GraphicsOutput.RTPAuxRgba1, 1)
         self.gBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
         self.lightBuffer.setClearColorActive(1)
         self.lightBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
@@ -113,6 +116,7 @@ class DeferredRendering(ShowBase):
         tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
         tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
         tmpnode.setShaderInput("gNormal", self.gNormal)
+        tmpnode.setShaderInput("gSpecular", self.gSpecular)
         tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
         tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
         self.adLightCam.node().setInitialState(tmpnode.getState())
@@ -139,7 +143,8 @@ class DeferredRendering(ShowBase):
         self.accept('1', self.set_card, [self.gDepthStencil])
         self.accept('2', self.set_card, [self.gDiffuse])
         self.accept('3', self.set_card, [self.gNormal])
-        self.accept('4', self.set_card, [self.gFinal])
+        self.accept('4', self.set_card, [self.gSpecular])
+        self.accept('5', self.set_card, [self.gFinal])
         self.accept('escape', __import__('sys').exit, [0])
 
         self.taskMgr.add(self.updateCamera, "Update Camera")
@@ -172,7 +177,7 @@ class DeferredRendering(ShowBase):
         self.sunLight.node().setDirection(LVecBase3f(1, -1, -0.22))
         self.sunLight.setShader(self.shaders['dLight'])
         self.SetupDirectionalLight(self.sunLight)
-        self.quad.instanceTo(self.sunLight)
+        #self.quad.instanceTo(self.sunLight)
 
         self.pointLight = self.lightRoot.attachNewNode(PointLight("pointLight"))
         self.pointLight.node().setColor((1.0, 1.0, 0.0, 1.0))
@@ -185,6 +190,12 @@ class DeferredRendering(ShowBase):
         #radius = self.calLightRadius(self.pointLight)
         radius = 5.0
         self.pointLight.setScale(radius, radius, radius)
+
+        self.spotlight = self.lightRoot.attachNewNode(Spotlight("spotlight"))
+        self.spotlight.node().setColor((1.0, 0.8, 0.5, 1.0))
+        self.spotlight.node().setSpecularColor((1.0, 1.0, 0.0, 1.0))
+        self.spotlight.node().setAttenuation((1.0, 0.09, 0.032))
+        self.spotlight.node().getLens().getFov().x
 
     def SetModels(self):
         self.modelRoot = NodePath(PandaNode("model root"))
@@ -201,6 +212,8 @@ class DeferredRendering(ShowBase):
         self.environ.setPos(-8, 42, 0)
 
         self.sphere = self.loader.loadModel("models/sphere")
+
+        self.cone = self.loader.loadModel("models/cone")
 
         self.skybox = self.loader.loadModel("models/skybox")
         #self.skybox.reparentTo(self.lightRoot)
@@ -227,7 +240,7 @@ class DeferredRendering(ShowBase):
         pLight.setShaderInput("TranSStoVS", self.tranSStoVS)
         pLight.setShaderInput("PointLight.color", pLight.node().getColor())
         pLight.setShaderInput("PointLight.specular", pLight.node().getSpecularColor())
-        pLight.setShaderInput("PointLight.position", pLight.getPos())
+        pLight.setShaderInput("PointLight.position", LVecBase4f(pLight.getPos(), 1.0))
         pLight.setShaderInput("PointLight.attenuation", pLight.node().getAttenuation())
         pLight.hide(BitMask32(self.modelMask | self.adLightMask))
 
@@ -310,6 +323,7 @@ class DeferredRendering(ShowBase):
     def calTranSStoVS(self):
         # Calculate the transform vector form screen-space to view-space
         Projection = self.cam.node().getLens().getProjectionMat()
+        print Projection
 
         y = 0.5 * Projection[3][2]
         x = y / Projection[0][0]
