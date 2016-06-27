@@ -2,10 +2,11 @@
 
 in vec3 fNormal;
 in vec2 fTexCoord;
+in vec4 fPos_view;
 
 layout (location = 0) out vec4 gDiffuse;
 layout (location = 1) out vec4 gNormal;
-//layout (location = 2) out vec4 gSpecular;
+layout (location = 2) out vec4 gSpecular;
 //layout (location = 3) out vec4 gIrradiance;
 //layout (location = 4) out vec4 gDepthStencil;
 
@@ -16,4 +17,7 @@ void main()
 	gDiffuse = texture(p3d_Texture0, fTexCoord);
     gNormal.rgb = normalize(fNormal) * 0.5 + 0.5;
     gNormal.a = 1.0;
+
+    gSpecular.rgb = fPos_view.xyz * 0.5 + 0.5;
+    gSpecular.a = 1.0;
 }
