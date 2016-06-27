@@ -18,6 +18,7 @@ loadPrcFileData('', 'cursor-hidden true')
 from direct.showbase.ShowBase import ShowBase
 from direct.task.Task import Task
 from direct.actor.Actor import Actor
+from direct.filter.CommonFilters import CommonFilters
 from direct.filter.FilterManager import FilterManager
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.DirectObject import DirectObject
@@ -75,6 +76,8 @@ class DeferredRendering(ShowBase):
         self.lightBuffer.addRenderTexture(self.gFinal,
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
 
+        self.cam.node().getLens().setNear(1.0)
+        self.cam.node().getLens().setFar(500.0)
         lens = self.cam.node().getLens()
 
         self.modelMask = 1
@@ -170,7 +173,7 @@ class DeferredRendering(ShowBase):
         self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
         self.ambientLight.setShader(self.shaders['aLight'])
         self.SetupAmbientLight(self.ambientLight)
-        self.quad.instanceTo(self.ambientLight)
+        #self.quad.instanceTo(self.ambientLight)
 
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
         self.sunLight.node().setColor((1.0, 0.76, 0.45, 1.0))
