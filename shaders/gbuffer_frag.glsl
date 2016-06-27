@@ -12,12 +12,21 @@ layout (location = 2) out vec4 gSpecular;
 
 uniform sampler2D p3d_Texture0;
 
+const float NEAR = 1.0f; // Projection matrix's near plane distance
+const float FAR = 500.0f; // Projection matrix's far plane distance
+float LinearizeDepth(float depth)
+{
+    float z = depth * 2.0 - 1.0; // Back to NDC 
+    return (2.0 * NEAR * FAR) / (FAR + NEAR - z * (FAR - NEAR));	
+}
+
+
 void main()
 {
 	gDiffuse = texture(p3d_Texture0, fTexCoord);
-    gNormal.rgb = normalize(fNormal) * 0.5 + 0.5;
+    gNormal.rbg = normalize(fNormal) * 0.5 + 0.5;
     gNormal.a = 1.0;
 
-    gSpecular.rgb = fPos_view.xyz * 0.5 + 0.5;
-    gSpecular.a = 1.0;
+    gSpecular.rgb = fPos_view.xyz;
+    gSpecular.a = LinearizeDepth(gl_FragCoord.z);
 }
