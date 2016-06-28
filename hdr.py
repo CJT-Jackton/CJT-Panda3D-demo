@@ -4,7 +4,7 @@
 # Author: CJT
 # Date: 2016/6/18
 
-# Deferred rendering pipeline using deferred shading.
+# High-dynamic-range renderring.
 
 from panda3d.core import *
 loadPrcFileData('', 'window-title CJT Deferred Rendering Demo')
@@ -141,6 +141,7 @@ class DeferredRendering(ShowBase):
         tmpnode.setShader(self.shaders['hdr'])
         tmpnode.setShaderInput("TexScale", self.texScale)
         tmpnode.setShaderInput("gHDR", self.gHDR)
+        tmpnode.setShaderInput("exposure", float(0.15))
         self.finalCam.node().setInitialState(tmpnode.getState())
 
         render.setState(RenderState.makeEmpty())
@@ -190,13 +191,15 @@ class DeferredRendering(ShowBase):
 
     def SetLights(self):
     	self.ambientLight = self.adLightCam.attachNewNode(AmbientLight("ambientLight"))
-        self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
+        #self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
+        self.ambientLight.node().setColor((0.037, 0.037, 0.043, 1.0))
         self.ambientLight.setShader(self.shaders['aLight'])
         self.SetupAmbientLight(self.ambientLight)
         self.quad.instanceTo(self.ambientLight)
 
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
-        self.sunLight.node().setColor((10.0, 7.6, 4.5, 1.0))
+        #self.sunLight.node().setColor((1.0, 0.76, 0.45, 1.0))
+        self.sunLight.node().setColor((2.0, 1.52, 0.9, 1.0))
         self.sunLight.node().setDirection(LVecBase3f(1, -1, -0.22))
         self.sunLight.setShader(self.shaders['dLight'])
         self.SetupDirectionalLight(self.sunLight)
@@ -209,7 +212,7 @@ class DeferredRendering(ShowBase):
         self.pointLight.node().setAttenuation((1.0, 0.09, 0.032))
         self.pointLight.setShader(self.shaders['pLight'])
         self.SetupPointLight(self.pointLight)
-        #self.sphere.instanceTo(self.pointLight)
+        self.sphere.instanceTo(self.pointLight)
         #radius = self.calLightRadius(self.pointLight)
         radius = 5.0
         self.pointLight.setScale(radius, radius, radius)
