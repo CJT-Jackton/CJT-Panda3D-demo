@@ -10,12 +10,12 @@ uniform mat4 p3d_ModelViewMatrixInverse;
 uniform mat3 p3d_NormalMatrix;
 //uniform mat4 p3d_ProjectionMatrixInverse;
 
-uniform sampler2D gDepthStencil;
-uniform sampler2D gDiffuse;
-uniform sampler2D gNormal;
-uniform sampler2D gSpecular;
+uniform sampler2D TexDepthStencil;
+uniform sampler2D TexDiffuse;
+uniform sampler2D TexNormal;
+uniform sampler2D TexSpecular;
 //uniform sampler2D gIrradiance;
-uniform vec2 TexScale;
+uniform vec2 texScale;
 uniform vec4 TranSStoVS;
 uniform struct p3d_LightSourceParameters {
   vec4 color;
@@ -32,18 +32,18 @@ uniform struct p3d_LightSourceParameters {
 void main()
 {
     vec3 fPos_clip = fPos.xyz / fPos.w;
-    vec2 fTexCoord = (fPos_clip.xy * 0.5 + 0.5) * TexScale;
+    vec2 fTexCoord = (fPos_clip.xy * 0.5 + 0.5) * texScale;
 
-    vec4 albedo = texture(gDiffuse, fTexCoord);
-    vec3 normal = (texture(gNormal, fTexCoord).rbg - 0.5) * 2;
-    //vec3 normal = texture(gNormal, fTexCoord).rbg;
-    float depth = texture(gDepthStencil, fTexCoord).a;
+    vec4 albedo = texture(TexDiffuse, fTexCoord);
+    vec3 normal = (texture(TexNormal, fTexCoord).rbg - 0.5) * 2;
+    //vec3 normal = texture(TexNormal, fTexCoord).rbg;
+    float depth = texture(TexDepthStencil, fTexCoord).a;
 
     //vec4 tmp = p3d_ProjectionMatrixInverse * vec4(fPos_clip.x, fPos_clip.y, depth, 1.0);
     //vec3 fPos_view = tmp.xyz / tmp.w;
     //vec3 fPos_view = (fPos_clip.xyz * TranSStoVS.xyz) / (depth + TranSStoVS.w);
-    vec3 fPos_view = (texture(gSpecular, fTexCoord).rgb - 0.5) * 2;
-    //vec3 fPos_view = texture(gSpecular, fTexCoord).rgb;
+    vec3 fPos_view = (texture(TexSpecular, fTexCoord).rgb - 0.5) * 2;
+    //vec3 fPos_view = texture(TexSpecular, fTexCoord).rgb;
 
     vec4 lpos = p3d_ViewMatrix * vec4(PointLight.position.xyz, 1.0);
     //lpos = vec4(lpos.xyz / lpos.w, 1.0);
