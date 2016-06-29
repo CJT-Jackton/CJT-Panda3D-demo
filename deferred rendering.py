@@ -52,28 +52,29 @@ class DeferredRendering(ShowBase):
         self.win.setSort(3)
 
         # G-Buffer render texture
-        self.gDepthStencil = Texture()
-        self.gDepthStencil.setFormat(Texture.FDepthStencil)
-        self.gDiffuse = Texture()
-        self.gNormal = Texture()
-        self.gSpecular = Texture()
-        #self.gIrradiance = Texture()
-        self.gFinal = Texture()
+        self.tex = {}
+        self.tex['DepthStencil'] = Texture()
+        self.tex['DepthStencil'].setFormat(Texture.FDepthStencil)
+        self.tex['Diffuse'] = Texture()
+        self.tex['Normal'] = Texture()
+        self.tex['Specular'] = Texture()
+        #self.tex['Irradiance'] = Texture()
+        self.tex['Final'] = Texture()
 
         self.texScale = LVecBase2f(self.calTexScale(self.win.getProperties().getXSize()),
                                    self.calTexScale(self.win.getProperties().getYSize()))
         self.tranSStoVS = self.calTranSStoVS()
 
-        self.gBuffer.addRenderTexture(self.gDepthStencil,
+        self.gBuffer.addRenderTexture(self.tex['DepthStencil'],
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPDepthStencil)
-        self.gBuffer.addRenderTexture(self.gDiffuse,
+        self.gBuffer.addRenderTexture(self.tex['Diffuse'],
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
-        self.gBuffer.addRenderTexture(self.gNormal,
+        self.gBuffer.addRenderTexture(self.tex['Normal'],
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPAuxRgba0)
-        self.gBuffer.addRenderTexture(self.gSpecular,
+        self.gBuffer.addRenderTexture(self.tex['Specular'],
             GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPAuxRgba1)
 
-        self.lightBuffer.addRenderTexture(self.gFinal,
+        self.lightBuffer.addRenderTexture(self.tex['Final'],
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
 
         self.cam.node().getLens().setNear(1.0)
@@ -115,11 +116,11 @@ class DeferredRendering(ShowBase):
 
         tmpnode = NodePath(PandaNode("tmp node"))
         #tmpnode.setShader(self.shaders['dLight'])
-        tmpnode.setShaderInput("TexScale", self.texScale)
-        tmpnode.setShaderInput("gDepthStencil", self.gDepthStencil)
-        tmpnode.setShaderInput("gDiffuse", self.gDiffuse)
-        tmpnode.setShaderInput("gNormal", self.gNormal)
-        tmpnode.setShaderInput("gSpecular", self.gSpecular)
+        tmpnode.setShaderInput("texScale", self.texScale)
+        tmpnode.setShaderInput("TexDepthStencil", self.tex['DepthStencil'])
+        tmpnode.setShaderInput("TexDiffuse", self.tex['Diffuse'])
+        tmpnode.setShaderInput("TexNormal", self.tex['Normal'])
+        tmpnode.setShaderInput("TexSpecular", self.tex['Specular'])
         tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
         tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
         self.adLightCam.node().setInitialState(tmpnode.getState())
@@ -129,7 +130,7 @@ class DeferredRendering(ShowBase):
 
         # debug
         self.card = self.lightBuffer.getTextureCard()
-        self.card.setTexture(self.gFinal)
+        self.card.setTexture(self.tex['Final'])
         self.card.reparentTo(render2d)
 
         self.skyTex = loader.loadCubeMap("textures/skybox/Twilight_#.jpg")
@@ -137,23 +138,9 @@ class DeferredRendering(ShowBase):
         self.makeQuad()
         self.SetModels()
         self.SetLights()
-
-        self.keys = {}
-        for key in ['w', 'a', 's', 'd']:
-        	self.keys[key] = 0
-        	self.accept(key, self.push_key, [key, 1])
-        	self.accept('%s-up' %key, self.push_key, [key, 0])
-        self.accept('1', self.set_card, [self.gDepthStencil])
-        self.accept('2', self.set_card, [self.gDiffuse])
-        self.accept('3', self.set_card, [self.gNormal])
-        self.accept('4', self.set_card, [self.gSpecular])
-        self.accept('5', self.set_card, [self.gFinal])
-        self.accept('escape', __import__('sys').exit, [0])
+        self.SetKeys()
 
         self.taskMgr.add(self.updateCamera, "Update Camera")
-
-    def set_card(self, tex):
-    	self.card.setTexture(tex)
 
     def SetShaders(self):
     	self.shaders = {}
@@ -221,10 +208,23 @@ class DeferredRendering(ShowBase):
         self.skybox = self.loader.loadModel("models/skybox")
         #self.skybox.reparentTo(self.lightRoot)
         self.skybox.setShader(self.shaders['skybox'])
-        self.skybox.setShaderInput("skybox", self.skyTex)
+        self.skybox.setShaderInput("TexSkybox", self.skyTex)
         self.skybox.setAttrib(DepthTestAttrib.make(RenderAttrib.MLessEqual))
         #self.skybox.hide(self.modelMask)
         #self.skybox.show(self.lightMask)
+
+    def SetKeys(self):
+        self.keys = {}
+        for key in ['w', 'a', 's', 'd']:
+            self.keys[key] = 0
+            self.accept(key, self.push_key, [key, 1])
+            self.accept('%s-up' % key, self.push_key, [key, 0])
+        self.accept('1', self.set_card, [self.tex['DepthStencil']])
+        self.accept('2', self.set_card, [self.tex['Diffuse']])
+        self.accept('3', self.set_card, [self.tex['Normal']])
+        self.accept('4', self.set_card, [self.tex['Specular']])
+        self.accept('5', self.set_card, [self.tex['Final']])
+        self.accept('escape', __import__('sys').exit, [0])
 
     def SetupAmbientLight(self, aLight):
         aLight.setShaderInput("TexScale", self.texScale)
@@ -254,6 +254,7 @@ class DeferredRendering(ShowBase):
         sLight.setShaderInput("LightSource.attenuation", sLight.node().getAttenuation())
 
     def makeQuad(self):
+        # Make a full screen quad.
         vdata = GeomVertexData("vdata", GeomVertexFormat.getV3t2(),Geom.UHStatic)
         vertex = GeomVertexWriter(vdata, 'vertex')
         texcoord = GeomVertexWriter(vdata, 'texcoord')
@@ -365,6 +366,9 @@ class DeferredRendering(ShowBase):
 
     def push_key(self, key, value):
     	self.keys[key] = value
+
+    def set_card(self, tex):
+    	self.card.setTexture(tex)
 
     def recenterMouse(self):
         self.win.movePointer(0,
