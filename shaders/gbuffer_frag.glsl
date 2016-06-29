@@ -4,11 +4,11 @@ in vec3 fNormal;
 in vec2 fTexCoord;
 in vec4 fPos_view;
 
-layout (location = 0) out vec4 gDiffuse;
-layout (location = 1) out vec4 gNormal;
-layout (location = 2) out vec4 gSpecular;
-//layout (location = 3) out vec4 gIrradiance;
-//layout (location = 4) out vec4 gDepthStencil;
+layout (location = 0) out vec4 TexDiffuse;
+layout (location = 1) out vec4 TexNormal;
+layout (location = 2) out vec4 TexSpecular;
+//layout (location = 3) out vec4 TexIrradiance;
+//layout (location = 4) out vec4 TexDepthStencil;
 
 uniform sampler2D p3d_Texture0;
 
@@ -23,10 +23,10 @@ float LinearizeDepth(float depth)
 
 void main()
 {
-	gDiffuse = texture(p3d_Texture0, fTexCoord);
-    gNormal.rbg = normalize(fNormal) * 0.5 + 0.5;
-    gNormal.a = 1.0;
+	TexDiffuse = texture(p3d_Texture0, fTexCoord);
+    TexNormal.rbg = normalize(fNormal) * 0.5 + 0.5;
+    TexNormal.a = 1.0;
 
-    gSpecular.rgb = fPos_view.xyz;
-    gSpecular.a = LinearizeDepth(gl_FragCoord.z);
+    TexSpecular.rgb = fPos_view.xyz;
+    TexSpecular.a = LinearizeDepth(gl_FragCoord.z);
 }
