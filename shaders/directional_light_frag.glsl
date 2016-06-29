@@ -4,11 +4,11 @@ in vec2 fTexCoord;
 
 layout (location = 0) out vec4 fColor;
 
-uniform sampler2D gDepthStencil;
-uniform sampler2D gDiffuse;
-uniform sampler2D gNormal;
-//uniform sampler2D gSpecular;
-//uniform sampler2D gIrradiance;
+uniform sampler2D TexDepthStencil;
+uniform sampler2D TexDiffuse;
+uniform sampler2D TexNormal;
+//uniform sampler2D TexSpecular;
+//uniform sampler2D TexIrradiance;
 uniform mat4 p3d_ModelViewMatrix;
 uniform mat4 p3d_ViewMatrix;
 uniform struct p3d_LightSourceParameters {
@@ -43,8 +43,8 @@ uniform struct p3d_LightSourceParameters {
 void main()
 {
     //vec4 pos = vec4(fTexCoord, texture(gDepthStencil, fTexCoord).r, 1.0);
-    vec4 albedo = texture(gDiffuse, fTexCoord);
-    vec3 normal = (texture(gNormal, fTexCoord).rbg - 0.5) * 2;
+    vec4 albedo = texture(TexDiffuse, fTexCoord);
+    vec3 normal = (texture(TexNormal, fTexCoord).rbg - 0.5) * 2;
 
     vec4 direction_world = vec4(LightSource.position.xyz, 1.0);
 
