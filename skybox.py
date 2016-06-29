@@ -73,7 +73,7 @@ class Skybox(ShowBase):
         self.skybox = self.loader.loadModel("models/skybox")
         self.skybox.reparentTo(self.render)
         self.skybox.setShader(sha)
-        self.skybox.setShaderInput("skybox", self.skyTex)
+        self.skybox.setShaderInput("TexSkybox", self.skyTex)
         self.skybox.setAttrib(DepthTestAttrib.make(RenderAttrib.MLessEqual))
 
         self.taskMgr.add(self.updateCamera, "Update Camera")
