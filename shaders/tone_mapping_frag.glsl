@@ -4,7 +4,7 @@ in vec2 fTexCoord;
 
 layout (location = 0) out vec4 fColor;
 
-uniform sampler2D gHDR;
+uniform sampler2D TexHDR;
 
 const float gamma = 2.2;
 const float exposure = 0.25;
