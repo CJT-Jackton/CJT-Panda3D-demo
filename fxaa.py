@@ -221,11 +221,15 @@ class AntiAliasing(ShowBase):
     def SetModels(self):
         self.modelRoot = NodePath(PandaNode("model root"))
         self.modelRoot.reparentTo(self.render)
-        self.modelRoot.hide(BitMask32(self.adLightMask | self.psLightMask | self.finalMask))
+        # self.modelRoot.hide(BitMask32(self.adLightMask | self.psLightMask | self.finalMask))
+        self.modelRoot.hide(BitMask32.allOn())
+        self.modelRoot.show(BitMask32(self.modelMask))
 
         self.lightRoot = NodePath(PandaNode("light root"))
         self.lightRoot.reparentTo(self.render)
-        self.lightRoot.hide(BitMask32(self.modelMask | self.adLightMask | self.finalMask))
+        #self.lightRoot.hide(BitMask32(self.modelMask | self.adLightMask | self.finalMask))
+        self.lightRoot.hide(BitMask32.allOn())
+        self.lightRoot.show(BitMask32(self.psLightMask))
 
     	self.environ = self.loader.loadModel("models/environment")
         self.environ.reparentTo(self.modelRoot)
