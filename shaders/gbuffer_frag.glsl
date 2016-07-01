@@ -27,6 +27,6 @@ void main()
     TexNormal.rbg = normalize(fNormal) * 0.5 + 0.5;
     TexNormal.a = 1.0;
 
-    TexSpecular.rgb = fPos_view.xyz;
+    TexSpecular.rgb = fPos_view.xyz * 0.5 + 0.5;
     TexSpecular.a = LinearizeDepth(gl_FragCoord.z);
 }
