@@ -12,6 +12,8 @@ layout (location = 0) out vec4 TexEdge;
 #define SMAA_INCLUDE_VS 0
 #define SMAA_INCLUDE_PS 1
 
+#define SMAA_PREDICATION 1
+
 
 #if defined(SMAA_PRESET_LOW)
 #define SMAA_THRESHOLD 0.15
@@ -287,7 +289,7 @@ void main()
 	vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
     #if SMAA_PREDICATION
     color.rg = SMAALumaEdgeDetectionPS(fTexCoord, offset, TexAlias, TexPredication);
-    #elif
+    #else
     color.rg = SMAALumaEdgeDetectionPS(fTexCoord, offset, TexAlias);
     #endif
     TexEdge = color;
