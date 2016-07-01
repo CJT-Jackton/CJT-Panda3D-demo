@@ -17,10 +17,10 @@ uniform mat4 p3d_ModelViewMatrix;
 void main()
 {
 	//fNormal = transpose(inverse(mat3(p3d_ModelMatrix))) * p3d_Normal;
-	fNormal = p3d_NormalMatrix * p3d_Normal;
-	fTexCoord = p3d_MultiTexCoord0;
+    fNormal = p3d_NormalMatrix * p3d_Normal;
+    fTexCoord = p3d_MultiTexCoord0;
 
-	fPos_view = p3d_ModelViewMatrix * vec4(p3d_Vertex.xyz, 1.0);
+    fPos_view = p3d_ModelViewMatrix * vec4(p3d_Vertex.xyz, 1.0);
 
     gl_Position = p3d_ModelViewProjectionMatrix * p3d_Vertex;
 }
