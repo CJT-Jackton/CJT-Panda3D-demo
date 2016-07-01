@@ -45,7 +45,8 @@ void main()
     vec3 fPos_view = (texture(TexSpecular, fTexCoord).rgb - 0.5) * 2;
     //vec3 fPos_view = texture(TexSpecular, fTexCoord).rgb;
 
-    vec4 lpos = p3d_ViewMatrix * vec4(PointLight.position.xyz, 1.0);
+    //vec4 lpos = p3d_ViewMatrix * vec4(PointLight.position.xyz, 1.0);
+    vec4 lpos = p3d_ViewMatrix * PointLight.position;
     //lpos = vec4(lpos.xyz / lpos.w, 1.0);
     vec4 lvec = lpos - vec4(fPos_view, 1.0);
     //vec4 lvec = lpos - p3d_ViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
@@ -57,9 +58,9 @@ void main()
       + PointLight.attenuation.y * ldistance
       + PointLight.attenuation.z * ldistance * ldistance);
 
-    vec4 diffuse = PointLight.color * max(dot(normal, ldir), 0.0);
+    vec4 diffuse = PointLight.color * max(dot(ldir, normal), 0.0);
     vec4 color = albedo * diffuse;
 
-    fColor = vec4(depth, depth, depth, 1.0);
-    //fColor = color;
+    //fColor = vec4(1.0, 0.0, 0.2, 1.0);
+    fColor = color;
 }
