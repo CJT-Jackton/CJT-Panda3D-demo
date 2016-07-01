@@ -8,7 +8,7 @@ uniform mat4 p3d_ModelViewProjectionMatrix;
 
 void main()
 {
-	fPos = p3d_ModelViewProjectionMatrix * p3d_Vertex;
+    fPos = p3d_ModelViewProjectionMatrix * p3d_Vertex;
     fPos.z = fPos.w;
     gl_Position = p3d_ModelViewProjectionMatrix * p3d_Vertex;
 }
