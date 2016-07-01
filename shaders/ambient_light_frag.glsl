@@ -9,8 +9,9 @@ uniform sampler2D TexDiffuse;
 uniform sampler2D TexNormal;
 //uniform sampler2D TexSpecular;
 //uniform sampler2D TexIrradiance;
+
 uniform struct p3d_LightSourceParameters {
-  vec4 color;
+    vec4 color;
 } AmbientLight;
 
 void main()
