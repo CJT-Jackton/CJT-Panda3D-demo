@@ -7,8 +7,7 @@ layout (location = 0) out vec4 fColor;
 uniform mat4 p3d_ViewMatrixInverse;
 uniform mat4 p3d_ViewMatrix;
 uniform mat4 p3d_ModelViewMatrixInverse;
-uniform mat3 p3d_NormalMatrix;
-//uniform mat4 p3d_ProjectionMatrixInverse;
+uniform mat4 p3d_ProjectionMatrixInverse;
 
 uniform sampler2D TexDepthStencil;
 uniform sampler2D TexDiffuse;
@@ -18,15 +17,10 @@ uniform sampler2D TexSpecular;
 uniform vec2 texScale;
 uniform vec4 TranSStoVS;
 uniform struct p3d_LightSourceParameters {
-  vec4 color;
-  vec4 specular;
- 
-  // View-space position.  If w=0, this is a directional light, with
-  // the xyz being -direction.
-  vec4 position;
- 
-  vec3 attenuation;
-
+    vec4 color;
+    vec4 specular;
+    vec4 position;
+    vec3 attenuation;
 } PointLight;
 
 void main()
@@ -39,26 +33,29 @@ void main()
     //vec3 normal = texture(TexNormal, fTexCoord).rbg;
     float depth = texture(TexDepthStencil, fTexCoord).a;
 
-    //vec4 tmp = p3d_ProjectionMatrixInverse * vec4(fPos_clip.x, fPos_clip.y, depth, 1.0);
-    //vec3 fPos_view = tmp.xyz / tmp.w;
+    vec4 tmp = p3d_ProjectionMatrixInverse * vec4(fPos_clip.x, fPos_clip.y, (depth * 2 - 1.0), 1.0);
+    vec3 fPos_view = tmp.xyz / tmp.w;
     //vec3 fPos_view = (fPos_clip.xyz * TranSStoVS.xyz) / (depth + TranSStoVS.w);
-    vec3 fPos_view = (texture(TexSpecular, fTexCoord).rgb - 0.5) * 2;
+    //vec3 fPos_view = (texture(TexSpecular, fTexCoord).rgb - 0.5) * 2;
     //vec3 fPos_view = texture(TexSpecular, fTexCoord).rgb;
+    //vec3 fPos = (texture(TexSpecular, fTexCoord).rgb);
 
-    //vec4 lpos = p3d_ViewMatrix * vec4(PointLight.position.xyz, 1.0);
-    vec4 lpos = p3d_ViewMatrix * PointLight.position;
+    vec4 lpos = p3d_ViewMatrix * vec4(PointLight.position.xyz, 1.0);
+    //vec4 lpos = p3d_ViewMatrix * PointLight.position;
     //lpos = vec4(lpos.xyz / lpos.w, 1.0);
-    vec4 lvec = lpos - vec4(fPos_view, 1.0);
+    vec3 lvec = vec3(lpos) - fPos_view;
+    //vec3 lvec = mat3(p3d_ViewMatrix) * vec3(fPos - PointLight.position.xzy);
+
     //vec4 lvec = lpos - p3d_ViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
     float ldistance = length(lvec);
-    //vec3 ldir = lvec.xyz / ldistance;
-    vec3 ldir = normalize(lvec.xyz);
+    vec3 ldir = lvec / ldistance;
+    //vec3 ldir = normalize(lvec);
 
     float att = 1.0 / (PointLight.attenuation.x
       + PointLight.attenuation.y * ldistance
       + PointLight.attenuation.z * ldistance * ldistance);
 
-    vec4 diffuse = PointLight.color * max(dot(ldir, normal), 0.0);
+    vec4 diffuse = att * PointLight.color * max(dot(ldir, normal), 0.0);
     vec4 color = albedo * diffuse;
 
     //fColor = vec4(1.0, 0.0, 0.2, 1.0);
