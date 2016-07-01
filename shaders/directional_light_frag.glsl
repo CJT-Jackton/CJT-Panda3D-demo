@@ -46,10 +46,11 @@ void main()
     vec4 albedo = texture(TexDiffuse, fTexCoord);
     vec3 normal = (texture(TexNormal, fTexCoord).rbg - 0.5) * 2;
 
-    vec4 direction_world = vec4(LightSource.position.xyz, 1.0);
+    //vec4 direction_world = vec4(LightSource.position.xyz, 1.0);
+    vec3 direction_world = LightSource.position.xyz;
 
-    vec3 direction = normalize(p3d_ViewMatrix * direction_world - p3d_ViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-    //vec3 direction = normalize(p3d_ViewMatrix * direction_world).xyz;
+    //vec3 direction = normalize(p3d_ViewMatrix * direction_world - p3d_ViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    vec3 direction = normalize(mat3(p3d_ViewMatrix) * direction_world);
 
     vec4 diffuse = LightSource.color * max(dot(-direction, normal), 0.0);
     vec4 color = albedo * diffuse;
