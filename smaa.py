@@ -46,7 +46,7 @@ class AntiAliasing(ShowBase):
         # Setup buffers
         self.gBuffer = self.makeFBO("G-Buffer", 2)
         self.lightBuffer = self.makeFBO("Light Buffer", 0)
-        self.finalBuffer = self.makeFBO("Final Buffer", 0)
+        self.SMAABuffer = self.makeFBO("Final Buffer", 0)
 
         self.gBuffer.setSort(1)
         self.lightBuffer.setSort(2)
