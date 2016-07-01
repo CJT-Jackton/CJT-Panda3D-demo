@@ -9,6 +9,7 @@
 from panda3d.core import *
 loadPrcFileData('', 'window-title CJT Anti-Aliasing Demo')
 loadPrcFileData('', 'win-size 1280 720')
+#loadPrcFileData('', 'fullscreen true')
 loadPrcFileData('', 'sync-video false')
 loadPrcFileData('', 'show-frame-rate-meter true')
 loadPrcFileData('', 'texture-minfilter linear-mipmap-nearest')
@@ -46,12 +47,16 @@ class AntiAliasing(ShowBase):
         # Setup buffers
         self.gBuffer = self.makeFBO("G-Buffer", 2)
         self.lightBuffer = self.makeFBO("Light Buffer", 0)
-        self.SMAABuffer = self.makeFBO("Final Buffer", 0)
+        self.SMAAEdgeBuffer = self.makeFBO("SMAA Edge Buffer", 0)
+        self.SMAABlendBuffer = self.makeFBO("SMAA Blend Buffer", 0)
+        self.SMAANeighborhoodBuffer = self.makeFBO("SMAA Neighborhood Buffer", 0)
 
         self.gBuffer.setSort(1)
         self.lightBuffer.setSort(2)
-        self.finalBuffer.setSort(3)
-        self.win.setSort(4)
+        self.SMAAEdgeBuffer.setSort(3)
+        self.SMAABlendBuffer.setSort(4)
+        self.SMAANeighborhoodBuffer.setSort(5)
+        self.win.setSort(6)
 
         # G-Buffer render texture
         self.tex = {}
@@ -62,7 +67,37 @@ class AntiAliasing(ShowBase):
         self.tex['Specular'] = Texture()
         #self.tex['Irradiance'] = Texture()
         self.tex['Alias'] = Texture()
-        self.tex['Final'] = Texture()
+        #self.tex['Alias'].setMagFilter(Texture.FTLinear)
+        #self.tex['Alias'].setMinFilter(Texture.FTLinear)
+        self.tex['Alias'].setWrapU(Texture.WMClamp)
+        self.tex['Alias'].setWrapV(Texture.WMClamp)
+        self.tex['SMAAEdge'] = Texture()
+        #self.tex['SMAAEdge'].setMagFilter(Texture.FTLinear)
+        #self.tex['SMAAEdge'].setMinFilter(Texture.FTLinear)
+        self.tex['SMAAEdge'].setWrapU(Texture.WMClamp)
+        self.tex['SMAAEdge'].setWrapV(Texture.WMClamp)
+        self.tex['SMAABlend'] = Texture()
+        #self.tex['SMAABlend'].setMagFilter(Texture.FTLinear)
+        #self.tex['SMAABlend'].setMinFilter(Texture.FTLinear)
+        self.tex['SMAABlend'].setWrapU(Texture.WMClamp)
+        self.tex['SMAABlend'].setWrapV(Texture.WMClamp)
+        self.tex['SMAANeighborhood'] = Texture()
+        #self.tex['SMAANeighborhood'].setMagFilter(Texture.FTLinear)
+        #self.tex['SMAANeighborhood'].setMinFilter(Texture.FTLinear)
+        self.tex['SMAANeighborhood'].setWrapU(Texture.WMClamp)
+        self.tex['SMAANeighborhood'].setWrapV(Texture.WMClamp)
+        self.tex['SMAAArea'] = loader.loadTexture("textures/smaa/AreaTexDX10.dds")
+        #self.tex['SMAAArea'].setFormat(Texture.FRg8i)
+        #self.tex['SMAAArea'].setMagFilter(Texture.FTLinear)
+        #self.tex['SMAAArea'].setMinFilter(Texture.FTLinear)
+        self.tex['SMAAArea'].setWrapU(Texture.WMClamp)
+        self.tex['SMAAArea'].setWrapV(Texture.WMClamp)
+        self.tex['SMAASearch'] = loader.loadTexture("textures/smaa/SearchTex.dds")
+        self.tex['SMAASearch'].setFormat(Texture.FRed)
+        #self.tex['SMAASearch'].setMagFilter(Texture.FTLinear)
+        #self.tex['SMAASearch'].setMinFilter(Texture.FTLinear)
+        self.tex['SMAASearch'].setWrapU(Texture.WMClamp)
+        self.tex['SMAASearch'].setWrapV(Texture.WMClamp)
 
         self.texScale = LVecBase2f(self.calTexScale(self.win.getProperties().getXSize()),
                                    self.calTexScale(self.win.getProperties().getYSize()))
@@ -80,7 +115,13 @@ class AntiAliasing(ShowBase):
         self.lightBuffer.addRenderTexture(self.tex['Alias'],
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
 
-        self.finalBuffer.addRenderTexture(self.tex['Final'],
+        self.SMAAEdgeBuffer.addRenderTexture(self.tex['SMAAEdge'],
+            GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
+
+        self.SMAABlendBuffer.addRenderTexture(self.tex['SMAABlend'],
+            GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
+
+        self.SMAANeighborhoodBuffer.addRenderTexture(self.tex['SMAANeighborhood'],
             GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
 
         self.cam.node().getLens().setNear(1.0)
@@ -90,12 +131,19 @@ class AntiAliasing(ShowBase):
         self.modelMask = 1
         self.adLightMask = 2
         self.psLightMask = 4
-        self.finalMask = 8
+        self.SMAAEdgeMask = 8
+        self.SMAABlendMask = 16
+        self.SMAANeighborhoodMask = 32
 
         self.gBufferCam = self.makeCamera(self.gBuffer, lens = lens, scene = render, mask = self.modelMask)
         self.adLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.adLightMask)
         self.psLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.psLightMask)
-        self.finalCam = self.makeCamera(self.finalBuffer, lens = lens, scene = render, mask = self.finalMask)
+        self.SMAAEdgeCam = self.makeCamera(
+            self.SMAAEdgeBuffer, lens = lens, scene = render, mask = self.SMAAEdgeMask)
+        self.SMAABlendCam = self.makeCamera(
+            self.SMAABlendBuffer, lens = lens, scene = render, mask = self.SMAABlendMask)
+        self.SMAANeighborhoodCam = self.makeCamera(
+            self.SMAANeighborhoodBuffer, lens  = lens, scene = render, mask = self.SMAANeighborhoodMask)
 
         self.cam.node().setActive(0)
 
@@ -105,7 +153,9 @@ class AntiAliasing(ShowBase):
         self.gBufferCam.node().getDisplayRegion(0).disableClears()
         self.adLightCam.node().getDisplayRegion(0).disableClears()
         self.psLightCam.node().getDisplayRegion(0).disableClears()
-        self.finalCam.node().getDisplayRegion(0).disableClears()
+        self.SMAAEdgeCam.node().getDisplayRegion(0).disableClears()
+        self.SMAABlendCam.node().getDisplayRegion(0).disableClears()
+        self.SMAANeighborhoodCam.node().getDisplayRegion(0).disableClears()
         self.cam.node().getDisplayRegion(0).disableClears()
         self.cam2d.node().getDisplayRegion(0).disableClears()
         self.gBuffer.disableClears()
@@ -118,8 +168,12 @@ class AntiAliasing(ShowBase):
         self.gBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
         self.lightBuffer.setClearColorActive(1)
         self.lightBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
-        self.finalBuffer.setClearColorActive(1)
-        self.finalBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
+        self.SMAAEdgeBuffer.setClearColorActive(1)
+        self.SMAAEdgeBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
+        self.SMAABlendBuffer.setClearColorActive(1)
+        self.SMAABlendBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
+        self.SMAANeighborhoodBuffer.setClearColorActive(1)
+        self.SMAANeighborhoodBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
 
         tmpnode = NodePath(PandaNode("tmp node"))
         tmpnode.setShader(self.shaders['gBuffer'])
@@ -138,28 +192,33 @@ class AntiAliasing(ShowBase):
         self.psLightCam.node().setInitialState(tmpnode.getState())
 
         tmpnode = NodePath(PandaNode("tmp node"))
-        tmpnode.setShader(self.shaders['fxaa'])
+        tmpnode.setShader(self.shaders['SMAAEdge'])
         tmpnode.setShaderInput("texScale", self.texScale)
         tmpnode.setShaderInput("TexAlias", self.tex['Alias'])
-        tmpnode.setShaderInput("fxaaQualityRcpFrame", LVecBase2f(float(1.0 / self.win.getProperties().getXSize()),
-                                                                 float(1.0 / self.win.getProperties().getYSize())))
-        tmpnode.setShaderInput("fxaaConsoleRcpFrameOpt", LVecBase4f(0.0, 0.0, 0.0, 0.0))
-        tmpnode.setShaderInput("fxaaConsoleRcpFrameOpt2", LVecBase4f(0.0, 0.0, 0.0, 0.0))
-        tmpnode.setShaderInput("fxaaConsole360RcpFrameOpt2", LVecBase4f(0.0, 0.0, 0.0, 0.0))
-        tmpnode.setShaderInput("fxaaQualitySubpix", float(0.50))
-        tmpnode.setShaderInput("fxaaQualityEdgeThreshold", float(0.125))
-        tmpnode.setShaderInput("fxaaQualityEdgeThresholdMin", float(0.0625))
-        tmpnode.setShaderInput("fxaaConsoleEdgeSharpness", float(8.0))
-        tmpnode.setShaderInput("fxaaConsoleEdgeThreshold", float(0.125))
-        tmpnode.setShaderInput("fxaaConsoleEdgeThresholdMin", float(0.05))
-        tmpnode.setShaderInput("fxaaConsole360ConstDir", LVecBase4f(1.0, -1.0, 0.25, -0.25))
-        self.finalCam.node().setInitialState(tmpnode.getState())
+        tmpnode.setShaderInput("TexPredication", self.tex['DepthStencil'])
+        self.SMAAEdgeCam.node().setInitialState(tmpnode.getState())
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['SMAABlend'])
+        tmpnode.setShaderInput("texScale", self.texScale)
+        tmpnode.setShaderInput("TexEdge", self.tex['SMAAEdge'])
+        tmpnode.setShaderInput("TexArea", self.tex['SMAAArea'])
+        tmpnode.setShaderInput("TexSearch", self.tex['SMAASearch'])
+        tmpnode.setShaderInput("subsampleIndices", LVecBase4f(0.0))
+        self.SMAABlendCam.node().setInitialState(tmpnode.getState())
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['SMAANeighborhood'])
+        tmpnode.setShaderInput("texScale", self.texScale)
+        tmpnode.setShaderInput("TexAlias", self.tex['Alias'])
+        tmpnode.setShaderInput("TexBlend", self.tex['SMAABlend'])
+        self.SMAANeighborhoodCam.node().setInitialState(tmpnode.getState())
 
         render.setState(RenderState.makeEmpty())
 
         # debug
         self.card = self.lightBuffer.getTextureCard()
-        self.card.setTexture(self.tex['Final'])
+        self.card.setTexture(self.tex['SMAANeighborhood'])
         self.card.reparentTo(render2d)
 
         self.skyTex = loader.loadCubeMap("textures/skybox/Twilight_#.jpg")
@@ -181,8 +240,12 @@ class AntiAliasing(ShowBase):
         	Shader.SLGLSL, "shaders/directional_light_vert.glsl", "shaders/directional_light_frag.glsl")
         self.shaders['pLight'] = Shader.load(
             Shader.SLGLSL, "shaders/point_light_vert.glsl", "shaders/point_light_frag.glsl")
-        self.shaders['fxaa'] = Shader.load(
-            Shader.SLGLSL, "shaders/fxaa_vert.glsl", "shaders/fxaa_frag.glsl")
+        self.shaders['SMAAEdge'] = Shader.load(
+            Shader.SLGLSL, "shaders/smaa_edge_vert.glsl", "shaders/smaa_edge_frag.glsl")
+        self.shaders['SMAABlend'] = Shader.load(
+            Shader.SLGLSL, "shaders/smaa_blend_vert.glsl", "shaders/smaa_blend_frag.glsl")
+        self.shaders['SMAANeighborhood'] = Shader.load(
+            Shader.SLGLSL, "shaders/smaa_neighborhood_vert.glsl", "shaders/smaa_neighborhood_frag.glsl")
         self.shaders['skybox'] = Shader.load(
         	Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
 
@@ -240,8 +303,20 @@ class AntiAliasing(ShowBase):
 
         self.cone = self.loader.loadModel("models/cone")
 
-        self.finalQuad = self.finalCam.attachNewNode(PandaNode("finalQuad"))
-        self.quad.instanceTo(self.finalQuad)
+        self.SMAAEdgeQuad = self.SMAAEdgeCam.attachNewNode(PandaNode("SMAAEdgeQuad"))
+        self.quad.instanceTo(self.SMAAEdgeQuad)
+        self.SMAAEdgeQuad.hide(BitMask32.allOn())
+        self.SMAAEdgeQuad.show(BitMask32(self.SMAAEdgeMask))
+
+        self.SMAABlendQuad = self.SMAABlendCam.attachNewNode(PandaNode("SMAABlendQuad"))
+        self.quad.instanceTo(self.SMAABlendQuad)
+        self.SMAABlendQuad.hide(BitMask32.allOn())
+        self.SMAABlendQuad.show(BitMask32(self.SMAABlendMask))
+
+        self.SMAANeighborhoodQuad = self.SMAANeighborhoodCam.attachNewNode(PandaNode("SMAANeighborhoodQuad"))
+        self.quad.instanceTo(self.SMAANeighborhoodQuad)
+        self.SMAANeighborhoodQuad.hide(BitMask32.allOn())
+        self.SMAANeighborhoodQuad.show(BitMask32(self.SMAANeighborhoodMask))
 
         self.skybox = self.loader.loadModel("models/skybox")
         #self.skybox.reparentTo(self.lightRoot)
@@ -259,20 +334,24 @@ class AntiAliasing(ShowBase):
             self.accept('%s-up' % key, self.push_key, [key, 0])
         self.accept('1', self.set_card, [self.tex['Diffuse']])
         self.accept('2', self.set_card, [self.tex['Alias']])
-        self.accept('3', self.set_card, [self.tex['Final']])
+        self.accept('3', self.set_card, [self.tex['SMAAEdge']])
+        self.accept('4', self.set_card, [self.tex['SMAABlend']])
+        self.accept('5', self.set_card, [self.tex['SMAANeighborhood']])
         self.accept('escape', __import__('sys').exit, [0])
 
     def SetupAmbientLight(self, aLight):
         aLight.setShaderInput("TexScale", self.texScale)
         aLight.setShaderInput("AmbientLight.color", aLight.node().getColor())
-        aLight.hide(BitMask32(self.modelMask | self.psLightMask | self.finalMask))
+        aLight.hide(BitMask32.allOn())
+        aLight.show(BitMask32(self.adLightMask))
 
     def SetupDirectionalLight(self, dLight):
         dLight.setShaderInput("TexScale", self.texScale)
         dLight.setShaderInput("LightSource.color", dLight.node().getColor())
         dLight.setShaderInput("LightSource.specular", dLight.node().getSpecularColor())
         dLight.setShaderInput("LightSource.position", dLight.node().getDirection())
-        dLight.hide(BitMask32(self.modelMask | self.psLightMask | self.finalMask))
+        dLight.hide(BitMask32.allOn())
+        dLight.show(BitMask32(self.adLightMask))
 
     def SetupPointLight(self, pLight):
         pLight.setShaderInput("TexScale", self.texScale)
@@ -281,7 +360,8 @@ class AntiAliasing(ShowBase):
         pLight.setShaderInput("PointLight.specular", pLight.node().getSpecularColor())
         pLight.setShaderInput("PointLight.position", LVecBase4f(pLight.getPos(), 1.0))
         pLight.setShaderInput("PointLight.attenuation", pLight.node().getAttenuation())
-        pLight.hide(BitMask32(self.modelMask | self.adLightMask | self.finalMask))
+        pLight.hide(BitMask32.allOn())
+        pLight.show(BitMask32(self.psLightMask))
 
     def SetupSpotlight(self, sLight):
         sLight.setShaderInput("LightSource.color", sLight.node().getColor())
