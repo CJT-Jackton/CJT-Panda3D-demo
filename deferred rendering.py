@@ -160,7 +160,7 @@ class DeferredRendering(ShowBase):
         self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
         self.ambientLight.setShader(self.shaders['aLight'])
         self.SetupAmbientLight(self.ambientLight)
-        #self.quad.instanceTo(self.ambientLight)
+        self.quad.instanceTo(self.ambientLight)
 
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
         self.sunLight.node().setColor((1.0, 0.76, 0.45, 1.0))
@@ -170,15 +170,15 @@ class DeferredRendering(ShowBase):
         #self.quad.instanceTo(self.sunLight)
 
         self.pointLight = self.lightRoot.attachNewNode(PointLight("pointLight"))
-        self.pointLight.node().setColor((1.0, 1.0, 0.0, 1.0))
+        self.pointLight.node().setColor((1.0, 1.0, 0.2, 1.0))
         self.pointLight.node().setSpecularColor((0.0, 1.0, 0.5, 1.0))
-        self.pointLight.setPos((0, 0, 3))
-        self.pointLight.node().setAttenuation((1.0, 0.09, 0.032))
+        self.pointLight.setPos((10, 2, 3))
+        self.pointLight.node().setAttenuation((1.0, 0.22, 0.20))
         self.pointLight.setShader(self.shaders['pLight'])
         self.SetupPointLight(self.pointLight)
         self.sphere.instanceTo(self.pointLight)
-        #radius = self.calLightRadius(self.pointLight)
-        radius = 5.0
+        radius = self.calLightRadius(self.pointLight)
+        print radius
         self.pointLight.setScale(radius, radius, radius)
 
         self.spotlight = self.lightRoot.attachNewNode(Spotlight("spotlight"))
@@ -233,9 +233,9 @@ class DeferredRendering(ShowBase):
 
     def SetupDirectionalLight(self, dLight):
         dLight.setShaderInput("TexScale", self.texScale)
-        dLight.setShaderInput("LightSource.color", dLight.node().getColor())
-        dLight.setShaderInput("LightSource.specular", dLight.node().getSpecularColor())
-        dLight.setShaderInput("LightSource.position", dLight.node().getDirection())
+        dLight.setShaderInput("DirectionalLight.color", dLight.node().getColor())
+        dLight.setShaderInput("DirectionalLight.specular", dLight.node().getSpecularColor())
+        dLight.setShaderInput("DirectionalLight.position", dLight.node().getDirection())
         dLight.hide(BitMask32(self.modelMask | self.psLightMask))
 
     def SetupPointLight(self, pLight):
