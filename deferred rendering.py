@@ -115,7 +115,6 @@ class DeferredRendering(ShowBase):
         self.gBufferCam.node().setInitialState(tmpnode.getState())
 
         tmpnode = NodePath(PandaNode("tmp node"))
-        #tmpnode.setShader(self.shaders['dLight'])
         tmpnode.setShaderInput("texScale", self.texScale)
         tmpnode.setShaderInput("TexDepthStencil", self.tex['DepthStencil'])
         tmpnode.setShaderInput("TexDiffuse", self.tex['Diffuse'])
@@ -124,6 +123,16 @@ class DeferredRendering(ShowBase):
         tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
         tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
         self.adLightCam.node().setInitialState(tmpnode.getState())
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShaderInput("texScale", self.texScale)
+        tmpnode.setShaderInput("TexDepthStencil", self.tex['DepthStencil'])
+        tmpnode.setShaderInput("TexDiffuse", self.tex['Diffuse'])
+        tmpnode.setShaderInput("TexNormal", self.tex['Normal'])
+        tmpnode.setShaderInput("TexSpecular", self.tex['Specular'])
+        tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
+        tmpnode.setAttrib(CullFaceAttrib.make(CullFaceAttrib.MCullCounterClockwise))
+        tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
         self.psLightCam.node().setInitialState(tmpnode.getState())
 
         render.setState(RenderState.makeEmpty())
@@ -152,6 +161,8 @@ class DeferredRendering(ShowBase):
         	Shader.SLGLSL, "shaders/directional_light_vert.glsl", "shaders/directional_light_frag.glsl")
         self.shaders['pLight'] = Shader.load(
             Shader.SLGLSL, "shaders/point_light_vert.glsl", "shaders/point_light_frag.glsl")
+        self.shaders['sLight'] = Shader.load(
+            Shader.SLGLSL, "shaders/spotlight_vert.glsl", "shaders/spotlight_frag.glsl")
         self.shaders['skybox'] = Shader.load(
         	Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
 
@@ -170,22 +181,28 @@ class DeferredRendering(ShowBase):
         #self.quad.instanceTo(self.sunLight)
 
         self.pointLight = self.lightRoot.attachNewNode(PointLight("pointLight"))
-        self.pointLight.node().setColor((1.0, 1.0, 0.2, 1.0))
-        self.pointLight.node().setSpecularColor((0.0, 1.0, 0.5, 1.0))
-        self.pointLight.setPos((10, 2, 3))
-        self.pointLight.node().setAttenuation((1.0, 0.22, 0.20))
+        self.pointLight.node().setColor((5.0, 5.0, 1.2, 1.0))
+        self.pointLight.node().setSpecularColor((5.0, 5.0, 2.5, 1.0))
+        self.pointLight.setPos((15, 2, 1))
+        self.pointLight.node().setAttenuation((1.0, 0.7, 1.8))
         self.pointLight.setShader(self.shaders['pLight'])
         self.SetupPointLight(self.pointLight)
         self.sphere.instanceTo(self.pointLight)
         radius = self.calLightRadius(self.pointLight)
-        print radius
         self.pointLight.setScale(radius, radius, radius)
 
         self.spotlight = self.lightRoot.attachNewNode(Spotlight("spotlight"))
-        self.spotlight.node().setColor((1.0, 0.8, 0.5, 1.0))
+        self.spotlight.node().setColor((5.0, 5.5, 0.2, 1.0))
         self.spotlight.node().setSpecularColor((1.0, 1.0, 0.0, 1.0))
-        self.spotlight.node().setAttenuation((1.0, 0.09, 0.032))
-        self.spotlight.node().getLens().getFov().x
+        self.spotlight.node().setAttenuation((1.0, 0.7, 1.8))
+        self.pointLight.setPos((0, 0, 0))
+        self.spotlight.node().getLens().setFov(30)
+        self.spotlight.node().getLens().setViewVector(1, 0, 0, 0, 0, 1)
+        #self.spotlight.setShader(self.shaders['sLight'])
+        self.SetupSpotlight(self.spotlight)
+        #self.cone.instanceTo(self.spotlight)
+        self.calSpotlightScale(self.spotlight)
+
 
     def SetModels(self):
         self.modelRoot = NodePath(PandaNode("model root"))
@@ -248,10 +265,10 @@ class DeferredRendering(ShowBase):
         pLight.hide(BitMask32(self.modelMask | self.adLightMask))
 
     def SetupSpotlight(self, sLight):
-        sLight.setShaderInput("LightSource.color", sLight.node().getColor())
-        sLight.setShaderInput("LightSource.specular", sLight.node().getSpecularColor())
-        sLight.setShaderInput("LightSource.position", sLight.getPos())
-        sLight.setShaderInput("LightSource.attenuation", sLight.node().getAttenuation())
+        sLight.setShaderInput("Spotlight.color", sLight.node().getColor())
+        sLight.setShaderInput("Spotlight.specular", sLight.node().getSpecularColor())
+        sLight.setShaderInput("Spotlight.position", sLight.getPos())
+        sLight.setShaderInput("Spotlight.attenuation", sLight.node().getAttenuation())
 
     def makeQuad(self):
         # Make a full screen quad.
@@ -310,6 +327,17 @@ class DeferredRendering(ShowBase):
 
         return radius
 
+    def calSpotlightScale(self, spotlight):
+        FOV = spotlight.node().getLens().getFov().x
+        FOV_rad = FOV * math.pi / 360
+        radius = self.calLightRadius(spotlight)
+
+        scale_x = radius * 2 * math.sin(FOV_rad) / math.sqrt(3)
+        scale_z = radius * 2 * math.cos(FOV_rad)
+        scale_y = scale_x
+
+        spotlight.setScale(scale_x, scale_y, scale_z)
+
     def calTexScale(self, length):
         pow_of_2 = (0, 1, 2, 4, 8, 16 ,32 ,64, 128, 256, 512, 1024, 2048, 4096)
 
@@ -327,7 +355,6 @@ class DeferredRendering(ShowBase):
     def calTranSStoVS(self):
         # Calculate the transform vector form screen-space to view-space
         Projection = self.cam.node().getLens().getProjectionMat()
-        print Projection
 
         y = 0.5 * Projection[3][2]
         x = y / Projection[0][0]
