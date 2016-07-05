@@ -27,6 +27,7 @@ from direct.interval.MetaInterval import Sequence
 import sys
 import os
 import math
+import random
 
 MouseSensitivity = 100
 CameraSpeed = 25
@@ -64,10 +65,9 @@ class AmbientOcclusion(ShowBase):
         self.tex['Specular'] = Texture()
         #self.tex['Irradiance'] = Texture()
         noise = PNMImage(4, 4)
-        noise.setXel(0, 0, LVecBase3f(1.0, 1.0, 1.0))
-        noise.setXel(1, 1, LVecBase3f(1.0, 1.0, 1.0))
-        noise.setXel(2, 2, LVecBase3f(1.0, 1.0, 1.0))
-        noise.setXel(3, 3, LVecBase3f(1.0, 1.0, 1.0))
+        for i in range(4):
+            for j in range(4):
+                noise.setXel(i, j, LVecBase3f(random.random() * 2 - 1, random.random() * 2 - 1, 0.0))
 
         self.tex['noise'] = Texture()
         self.tex['noise'].load(noise)
@@ -88,6 +88,7 @@ class AmbientOcclusion(ShowBase):
         self.texScaleNoise = LVecBase2f(self.win.getProperties().getXSize() / 4.0,
                                         self.win.getProperties().getYSize() / 4.0)
         self.tranSStoVS = self.calTranSStoVS()
+        self.SSAOcalRandomSample()
 
         self.gBuffer.addRenderTexture(self.tex['DepthStencil'],
         	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPDepthStencil)
@@ -181,7 +182,7 @@ class AmbientOcclusion(ShowBase):
         tmpnode.setShaderInput("TexDepthStencil", self.tex['DepthStencil'])
         tmpnode.setShaderInput("TexNormal", self.tex['Normal'])
         tmpnode.setShaderInput("TexNoise", self.tex['noise'])
-        #tmpnode.setShaderInput("samples")
+        tmpnode.setShaderInput("samples", self.SSAOsamples)
         self.SSAONoiseCam.node().setInitialState(tmpnode.getState())
 
         tmpnode = NodePath(PandaNode("tmp node"))
@@ -191,6 +192,11 @@ class AmbientOcclusion(ShowBase):
         tmpnode.setShaderInput("TexDepthStencil", self.tex['DepthStencil'])
         tmpnode.setShaderInput("TexNormal", self.tex['Normal'])
         tmpnode.setShaderInput("TexNoise", self.tex['noise'])
+
+        #for i in range(64):
+        #    tmpnode.setShaderInput("samples[%d]" % i, self.SSAOsamples[i])
+        tmpnode.setShaderInput("samples", self.SSAOsamples)
+        #tmpnode.setShaderInput("samples[0]", self.SSAOsamples[0])
         self.SSAOBlurCam.node().setInitialState(tmpnode.getState())
 
         render.setState(RenderState.makeEmpty())
@@ -208,6 +214,16 @@ class AmbientOcclusion(ShowBase):
         self.SetKeys()
 
         self.taskMgr.add(self.updateCamera, "Update Camera")
+
+    def SSAOcalRandomSample(self):
+        self.SSAOsamples = PTA_LVecBase4f()
+
+        for i in range(64):
+            sample = LVecBase3f(random.random() * 2 - 1, random.random() * 2 - 1, random.random())
+            sample_length = math.sqrt(sample.x * sample.x + sample.y * sample.y + sample.z * sample.z)
+            sample /= sample_length
+            sample *= random.random()
+            self.SSAOsamples.push_back(UnalignedLVecBase4f(sample.x, sample.y, sample.z, 0.0))
 
     def SetShaders(self):
     	self.shaders = {}
