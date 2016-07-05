@@ -10,14 +10,17 @@ uniform sampler2D TexNormal;
 //uniform sampler2D TexSpecular;
 //uniform sampler2D TexIrradiance;
 
+uniform sampler2D TexAO;
+
 uniform struct p3d_LightSourceParameters {
     vec4 color;
 } AmbientLight;
 
 void main()
 {
-    vec4 albedo = texture(TexDiffuse, fTexCoord);
-    vec4 color = albedo * AmbientLight.color;
+    vec3 albedo = texture(TexDiffuse, fTexCoord).rgb;
+    float ambientOcclusion = texture(TexAO, fTexCoord).r;
+    vec4 color = ambientOcclusion * vec4(albedo, 1.0) * AmbientLight.color;
 
     fColor = color;
 }
