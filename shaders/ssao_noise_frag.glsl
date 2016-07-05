@@ -30,7 +30,7 @@ float LinearizeDepth(float depth)
 
 void main()
 {
-	float depth = texture(TexDepthStencil, fTexCoord).r;
+	float depth = texture(TexDepthStencil, fTexCoord * texScale).r;
     vec4 tmp = p3d_ProjectionMatrixInverse * vec4(fPos.x, fPos.y, (depth * 2 - 1.0), 1.0);
     vec3 fPos_view = tmp.xyz / tmp.w;
 
@@ -55,11 +55,11 @@ void main()
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
 
-        float sample_depth = texture(TexDepthStencil, offset.xy).r;
+        float sample_depth = -texture(TexDepthStencil, offset.xy * texScale).r;
 
         float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fPos_view.z - sample_depth));
         
-        if(sample_depth <= sample_view.z)
+        if(LinearizeDepth(sample_depth) >= sample_view.z)
             AmbientOcclusion += 1.0 * rangeCheck;
     }
 
