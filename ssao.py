@@ -11,6 +11,8 @@ loadPrcFileData('', 'window-title CJT Ambient Occlusion Demo')
 loadPrcFileData('', 'win-size 1280 720')
 loadPrcFileData('', 'sync-video false')
 loadPrcFileData('', 'show-frame-rate-meter true')
+loadPrcFileData('', 'textures-power-2 none')
+loadPrcFileData('', 'texture-anisotropic-degree 16')
 loadPrcFileData('', 'texture-minfilter linear-mipmap-linear')
 loadPrcFileData('', 'cursor-hidden true')
 #loadPrcFileData('', 'gl-coordinate-system default')
@@ -37,7 +39,7 @@ class AmbientOcclusion(ShowBase):
         ShowBase.__init__(self)
         self.win.setClearColor(LVecBase4(0.0, 0.0, 0.0, 1))
 
-        self.camera.setPos(0, -15, 5)
+        self.camera.setPos(0, 0, 5)
 
         self.disableMouse()
         self.recenterMouse()
@@ -60,6 +62,8 @@ class AmbientOcclusion(ShowBase):
         self.tex = {}
         self.tex['DepthStencil'] = Texture()
         self.tex['DepthStencil'].setFormat(Texture.FDepthStencil)
+        self.tex['DepthStencil'].setWrapU(Texture.WMClamp)
+        self.tex['DepthStencil'].setWrapV(Texture.WMClamp)
         self.tex['Diffuse'] = Texture()
         self.tex['Normal'] = Texture()
         self.tex['Specular'] = Texture()
@@ -83,8 +87,9 @@ class AmbientOcclusion(ShowBase):
         #self.tex['SSAOBlurred'].setFormat(Texture.FRed)
         self.tex['Final'] = Texture()
 
-        self.texScale = LVecBase2f(self.calTexScale(self.win.getProperties().getXSize()),
-                                   self.calTexScale(self.win.getProperties().getYSize()))
+        #self.texScale = LVecBase2f(self.calTexScale(self.win.getProperties().getXSize()),
+        #                           self.calTexScale(self.win.getProperties().getYSize()))
+        self.texScale = LVecBase2f(1.0, 1.0)
         self.texScaleNoise = LVecBase2f(self.win.getProperties().getXSize() / 4.0,
                                         self.win.getProperties().getYSize() / 4.0)
         self.tranSStoVS = self.calTranSStoVS()
@@ -160,6 +165,7 @@ class AmbientOcclusion(ShowBase):
         tmpnode.setShaderInput("TexDiffuse", self.tex['Diffuse'])
         tmpnode.setShaderInput("TexNormal", self.tex['Normal'])
         tmpnode.setShaderInput("TexSpecular", self.tex['Specular'])
+        tmpnode.setShaderInput("TexAO", self.tex['SSAOBlurred'])
         tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
         tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
         self.adLightCam.node().setInitialState(tmpnode.getState())
@@ -186,17 +192,9 @@ class AmbientOcclusion(ShowBase):
         self.SSAONoiseCam.node().setInitialState(tmpnode.getState())
 
         tmpnode = NodePath(PandaNode("tmp node"))
-        tmpnode.setShader(self.shaders['SSAONoise'])
+        tmpnode.setShader(self.shaders['SSAOBlur'])
         tmpnode.setShaderInput("texScale", self.texScale)
-        tmpnode.setShaderInput("texScaleNoise", self.texScaleNoise)
-        tmpnode.setShaderInput("TexDepthStencil", self.tex['DepthStencil'])
-        tmpnode.setShaderInput("TexNormal", self.tex['Normal'])
-        tmpnode.setShaderInput("TexNoise", self.tex['noise'])
-
-        #for i in range(64):
-        #    tmpnode.setShaderInput("samples[%d]" % i, self.SSAOsamples[i])
-        tmpnode.setShaderInput("samples", self.SSAOsamples)
-        #tmpnode.setShaderInput("samples[0]", self.SSAOsamples[0])
+        tmpnode.setShaderInput("TexSSAONoisy", self.tex['SSAONoisy'])
         self.SSAOBlurCam.node().setInitialState(tmpnode.getState())
 
         render.setState(RenderState.makeEmpty())
@@ -223,6 +221,10 @@ class AmbientOcclusion(ShowBase):
             sample_length = math.sqrt(sample.x * sample.x + sample.y * sample.y + sample.z * sample.z)
             sample /= sample_length
             sample *= random.random()
+            sample = sample * 0.5 + 0.5
+            scale = float(i) / 64.0
+            scale = 0.1 + 0.9 * (scale * scale)
+            sample *= scale
             self.SSAOsamples.push_back(UnalignedLVecBase4f(sample.x, sample.y, sample.z, 0.0))
 
     def SetShaders(self):
@@ -239,22 +241,24 @@ class AmbientOcclusion(ShowBase):
             Shader.SLGLSL, "shaders/spotlight_vert.glsl", "shaders/spotlight_frag.glsl")
         self.shaders['SSAONoise'] = Shader.load(
             Shader.SLGLSL, "shaders/ssao_noise_vert.glsl", "shaders/ssao_noise_frag.glsl")
+        self.shaders['SSAOBlur'] = Shader.load(
+            Shader.SLGLSL, "shaders/ssao_blur_vert.glsl", "shaders/ssao_blur_frag.glsl")
         self.shaders['skybox'] = Shader.load(
         	Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
 
     def SetLights(self):
     	self.ambientLight = self.adLightCam.attachNewNode(AmbientLight("ambientLight"))
-        self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
+        self.ambientLight.node().setColor((0.97, 0.97, 0.93, 1.0))
         self.ambientLight.setShader(self.shaders['aLight'])
         self.SetupAmbientLight(self.ambientLight)
         self.quad.instanceTo(self.ambientLight)
 
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
-        self.sunLight.node().setColor((1.0, 0.76, 0.45, 1.0))
+        self.sunLight.node().setColor((1.0, 1.0, 0.85, 1.0))
         self.sunLight.node().setDirection(LVecBase3f(1, -1, -0.22))
         self.sunLight.setShader(self.shaders['dLight'])
         self.SetupDirectionalLight(self.sunLight)
-        self.quad.instanceTo(self.sunLight)
+        #self.quad.instanceTo(self.sunLight)
 
         self.pointLight = self.lightRoot.attachNewNode(PointLight("pointLight"))
         self.pointLight.node().setColor((5.0, 5.0, 1.2, 1.0))
@@ -283,16 +287,26 @@ class AmbientOcclusion(ShowBase):
     def SetModels(self):
         self.modelRoot = NodePath(PandaNode("model root"))
         self.modelRoot.reparentTo(self.render)
-        self.modelRoot.hide(BitMask32(self.adLightMask | self.psLightMask))
+        self.modelRoot.hide(BitMask32.allOn())
+        self.modelRoot.show(BitMask32(self.modelMask))
 
         self.lightRoot = NodePath(PandaNode("light root"))
         self.lightRoot.reparentTo(self.render)
         self.lightRoot.hide(BitMask32(self.modelMask | self.adLightMask))
 
-    	self.environ = self.loader.loadModel("models/environment")
-        self.environ.reparentTo(self.modelRoot)
-        self.environ.setScale(0.25, 0.25, 0.25)
-        self.environ.setPos(-8, 42, 0)
+    	#self.environ = self.loader.loadModel("models/environment")
+        #self.environ.reparentTo(self.modelRoot)
+        #self.environ.setScale(0.25, 0.25, 0.25)
+        #self.environ.setPos(-8, 42, 0)
+
+        self.sponza = self.loader.loadModel("models/sponza/sponza.bam")
+        self.sponza.reparentTo(self.modelRoot)
+        self.sponza.setScale(0.0005, 0.0005, 0.0005)
+
+        #self.bunny = self.loader.loadModel("models/bunny")
+        #self.bunny.reparentTo(self.modelRoot)
+        #self.bunny.setPos(0, 0, 0)
+        #self.bunny.setScale(25, 25, 25)
 
         self.SSAONoiseQuad = self.SSAONoiseCam.attachNewNode(PandaNode("SSAONoiseQuad"))
         self.quad.instanceTo(self.SSAONoiseQuad)
@@ -317,11 +331,12 @@ class AmbientOcclusion(ShowBase):
             self.keys[key] = 0
             self.accept(key, self.push_key, [key, 1])
             self.accept('%s-up' % key, self.push_key, [key, 0])
-        self.accept('1', self.set_card, [self.tex['Diffuse']])
-        self.accept('2', self.set_card, [self.tex['SSAONoisy']])
-        self.accept('3', self.set_card, [self.tex['SSAOBlurred']])
-        self.accept('4', self.set_card, [self.tex['noise']])
-        self.accept('5', self.set_card, [self.tex['Final']])
+        self.accept('1', self.set_card, [self.tex['DepthStencil']])
+        self.accept('2', self.set_card, [self.tex['Normal']])
+        self.accept('3', self.set_card, [self.tex['Diffuse']])
+        self.accept('4', self.set_card, [self.tex['SSAONoisy']])
+        self.accept('5', self.set_card, [self.tex['SSAOBlurred']])
+        self.accept('6', self.set_card, [self.tex['Final']])
         self.accept('escape', __import__('sys').exit, [0])
 
     def SetupAmbientLight(self, aLight):
