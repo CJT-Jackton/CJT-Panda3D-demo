@@ -176,7 +176,7 @@ class DeferredRendering(ShowBase):
 
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
         self.sunLight.node().setColor((1.0, 1.0, 0.85, 1.0))
-        self.sunLight.node().setDirection(LVecBase3f(1, -0.75, -0.52))
+        self.sunLight.node().setDirection(LVecBase3f(-1, -0.75, -0.52))
         self.sunLight.setShader(self.shaders['dLight'])
         self.SetupDirectionalLight(self.sunLight)
         self.quad.instanceTo(self.sunLight)
@@ -222,7 +222,7 @@ class DeferredRendering(ShowBase):
 
         self.sponza = self.loader.loadModel("models/sponza/sponza.bam")
         self.sponza.reparentTo(self.modelRoot)
-        self.sponza.setScale(0.0005, 0.0005, 0.0005)
+        self.sponza.setScale(0.1, 0.1, 0.1)
 
         self.sphere = self.loader.loadModel("models/sphere")
 
