@@ -30,7 +30,7 @@ float LinearizeDepth(float depth)
 
 void main()
 {
-	float depth = texture(TexDepthStencil, fTexCoord * texScale).rgb;
+    float depth = texture(TexDepthStencil, fTexCoord * texScale).r;
     vec4 tmp = p3d_ProjectionMatrixInverse * vec4((fTexCoord.x * 2 - 1.0), (fTexCoord.y * 2 - 1.0), (depth * 2 - 1.0), 1.0);
     vec3 fPos_view = tmp.xyz / tmp.w;
 
@@ -55,7 +55,7 @@ void main()
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
 
-        float sample_depth = texture(TexDepthStencil, offset.xy * texScale).rgb;
+        float sample_depth = texture(TexDepthStencil, offset.xy * texScale).r;
         //sample_depth = sample_depth == 0.0 ? FAR: sample_depth;
         sample_depth = -LinearizeDepth(sample_depth);
         //sample_depth = -(sample_depth * 2 - 1.0);
