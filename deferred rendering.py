@@ -11,6 +11,7 @@ loadPrcFileData('', 'window-title CJT Deferred Rendering Demo')
 loadPrcFileData('', 'win-size 1280 720')
 loadPrcFileData('', 'sync-video false')
 loadPrcFileData('', 'show-frame-rate-meter true')
+loadPrcFileData('', 'texture-anisotropic-degree 16')
 loadPrcFileData('', 'texture-minfilter linear-mipmap-linear')
 loadPrcFileData('', 'cursor-hidden true')
 #loadPrcFileData('', 'gl-coordinate-system default')
@@ -174,11 +175,11 @@ class DeferredRendering(ShowBase):
         self.quad.instanceTo(self.ambientLight)
 
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
-        self.sunLight.node().setColor((1.0, 0.76, 0.45, 1.0))
-        self.sunLight.node().setDirection(LVecBase3f(1, -1, -0.22))
+        self.sunLight.node().setColor((1.0, 1.0, 0.85, 1.0))
+        self.sunLight.node().setDirection(LVecBase3f(1, -0.75, -0.52))
         self.sunLight.setShader(self.shaders['dLight'])
         self.SetupDirectionalLight(self.sunLight)
-        #self.quad.instanceTo(self.sunLight)
+        self.quad.instanceTo(self.sunLight)
 
         self.pointLight = self.lightRoot.attachNewNode(PointLight("pointLight"))
         self.pointLight.node().setColor((5.0, 5.0, 1.2, 1.0))
@@ -187,7 +188,7 @@ class DeferredRendering(ShowBase):
         self.pointLight.node().setAttenuation((1.0, 0.7, 1.8))
         self.pointLight.setShader(self.shaders['pLight'])
         self.SetupPointLight(self.pointLight)
-        self.sphere.instanceTo(self.pointLight)
+        #self.sphere.instanceTo(self.pointLight)
         radius = self.calLightRadius(self.pointLight)
         self.pointLight.setScale(radius, radius, radius)
 
@@ -207,16 +208,21 @@ class DeferredRendering(ShowBase):
     def SetModels(self):
         self.modelRoot = NodePath(PandaNode("model root"))
         self.modelRoot.reparentTo(self.render)
-        self.modelRoot.hide(BitMask32(self.adLightMask | self.psLightMask))
+        self.modelRoot.hide(BitMask32.allOn())
+        self.modelRoot.show(BitMask32(self.modelMask))
 
         self.lightRoot = NodePath(PandaNode("light root"))
         self.lightRoot.reparentTo(self.render)
         self.lightRoot.hide(BitMask32(self.modelMask | self.adLightMask))
 
-    	self.environ = self.loader.loadModel("models/environment")
-        self.environ.reparentTo(self.modelRoot)
-        self.environ.setScale(0.25, 0.25, 0.25)
-        self.environ.setPos(-8, 42, 0)
+    	#self.environ = self.loader.loadModel("models/environment")
+        #self.environ.reparentTo(self.modelRoot)
+        #self.environ.setScale(0.25, 0.25, 0.25)
+        #self.environ.setPos(-8, 42, 0)
+
+        self.sponza = self.loader.loadModel("models/sponza/sponza.bam")
+        self.sponza.reparentTo(self.modelRoot)
+        self.sponza.setScale(0.0005, 0.0005, 0.0005)
 
         self.sphere = self.loader.loadModel("models/sphere")
 
