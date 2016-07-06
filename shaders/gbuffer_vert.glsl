@@ -3,10 +3,15 @@
 in vec4 p3d_Vertex;
 in vec3 p3d_Normal;
 in vec2 p3d_MultiTexCoord0;
+in vec2 p3d_MultiTexCoord1;
+in vec3 p3d_Tangent;
+in vec3 p3d_Binormal;
 
-out vec3 fNormal;
-out vec2 fTexCoord;
+//out vec3 fNormal;
+out vec2 fTexCoord0;
+out vec2 fTexCoord1;
 out vec4 fPos_view;
+out mat3 TangentMatrix;
 
 uniform mat3 p3d_NormalMatrix;
 // This is the upper 3x3 of the inverse transpose of the ModelViewMatrix.  It is used
@@ -16,9 +21,15 @@ uniform mat4 p3d_ModelViewMatrix;
 
 void main()
 {
-	//fNormal = transpose(inverse(mat3(p3d_ModelMatrix))) * p3d_Normal;
-    fNormal = p3d_NormalMatrix * p3d_Normal;
-    fTexCoord = p3d_MultiTexCoord0;
+    //fNormal = transpose(inverse(mat3(p3d_ModelMatrix))) * p3d_Normal;
+    vec3 fNormal = normalize(p3d_NormalMatrix * p3d_Normal);
+    vec3 fTangent = normalize(p3d_NormalMatrix * p3d_Tangent);
+    vec3 fBinormal = normalize(p3d_NormalMatrix * p3d_Binormal);
+    
+    TangentMatrix = mat3(fTangent, fBinormal, fNormal);
+
+    fTexCoord0 = p3d_MultiTexCoord0;
+    fTexCoord1 = p3d_MultiTexCoord1;
 
     fPos_view = p3d_ModelViewMatrix * vec4(p3d_Vertex.xyz, 1.0);
 
