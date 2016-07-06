@@ -14,8 +14,9 @@ layout (location = 2) out vec4 TexSpecular;
 
 uniform sampler2D p3d_Texture0;
 uniform sampler2D p3d_Texture1;
+uniform sampler2D p3d_Texture2;
 
-uniform mat3 p3d_NormalMatrix;
+uniform mat3 p3d_ViewMatrix;
 
 const float NEAR = 1.0f; // Projection matrix's near plane distance
 const float FAR = 500.0f; // Projection matrix's far plane distance
@@ -25,18 +26,17 @@ float LinearizeDepth(float depth)
     return (2.0 * NEAR * FAR) / (FAR + NEAR - z * (FAR - NEAR));	
 }
 
-
 void main()
 {
     TexDiffuse = texture(p3d_Texture0, fTexCoord0);
 
+    //vec3 fNormal = vec3(0.0, 0.0, 1.0);
     //vec3 fNormal = TangentMatrix * normalize(texture(p3d_Texture1, fTexCoord1).rbg);
-    vec3 fNormal = texture(p3d_Texture1, fTexCoord1).rbg;
-    fNormal = fNormal == vec3(0.0)? vec3(1.0): fNormal;
-    //TexNormal.rbg = normalize(fNormal) * 0.5 + 0.5;
-    TexNormal.rbg = TangentMatrix * normalize(fNormal) * 0.5 + 0.5;
+    vec3 fNormal = texture(p3d_Texture1, fTexCoord1).rgb * 2.0 - 1.0;
+    fNormal = (fNormal == vec3(0.0, 0.0, 0.0))? vec3(0.0, 0.0, 1.0): fNormal;
+    //TexNormal.rgb = normalize(fNormal) * 0.5 + 0.5;
+    TexNormal.rbg = (TangentMatrix * normalize(fNormal)) * 0.5 + 0.5;
     TexNormal.a = 1.0;
 
-    TexSpecular.rgb = fPos_view.xyz;
-    TexSpecular.a = LinearizeDepth(gl_FragCoord.z);
+    TexSpecular = texture(p3d_Texture2, fTexCoord0);
 }
