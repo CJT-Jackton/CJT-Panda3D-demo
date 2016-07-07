@@ -217,7 +217,8 @@ class AmbientOcclusion(ShowBase):
         self.SSAOsamples = PTA_LVecBase4f()
 
         for i in range(64):
-            sample = LVecBase3f(random.random() * 2 - 1, random.random() * 2 - 1, random.random())
+            #sample = LVecBase3f(random.random() * 2 - 1, random.random() * 2 - 1, random.random())
+            sample = LVecBase3f(random.uniform(-1.0, 1.0), random.uniform(-1.0, 1.0), random.uniform(0.0, 1.0))
             sample_length = math.sqrt(sample.x * sample.x + sample.y * sample.y + sample.z * sample.z)
             sample /= sample_length
             sample *= random.random()
@@ -301,7 +302,7 @@ class AmbientOcclusion(ShowBase):
 
         self.sponza = self.loader.loadModel("models/sponza/sponza.bam")
         self.sponza.reparentTo(self.modelRoot)
-        self.sponza.setScale(0.0005, 0.0005, 0.0005)
+        self.sponza.setScale(0.1, 0.1, 0.1)
 
         #self.bunny = self.loader.loadModel("models/bunny")
         #self.bunny.reparentTo(self.modelRoot)
@@ -331,7 +332,7 @@ class AmbientOcclusion(ShowBase):
             self.keys[key] = 0
             self.accept(key, self.push_key, [key, 1])
             self.accept('%s-up' % key, self.push_key, [key, 0])
-        self.accept('1', self.set_card, [self.tex['DepthStencil']])
+        self.accept('1', self.set_card, [self.tex['Specular']])
         self.accept('2', self.set_card, [self.tex['Normal']])
         self.accept('3', self.set_card, [self.tex['Diffuse']])
         self.accept('4', self.set_card, [self.tex['SSAONoisy']])
