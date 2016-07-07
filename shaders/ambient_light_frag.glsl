@@ -19,8 +19,8 @@ uniform struct p3d_LightSourceParameters {
 void main()
 {
     vec3 albedo = texture(TexDiffuse, fTexCoord).rgb;
-    //float ambientOcclusion = texture(TexAO, fTexCoord).r;
-    float ambientOcclusion = 1.0;
+    float ambientOcclusion = texture(TexAO, fTexCoord).r;
+    //float ambientOcclusion = 1.0;
     vec4 color = ambientOcclusion * vec4(albedo, 1.0) * AmbientLight.color;
 
     fColor = color;
