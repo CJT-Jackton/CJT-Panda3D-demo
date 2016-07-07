@@ -30,7 +30,6 @@ void main()
 
     vec4 albedo = texture(TexDiffuse, fTexCoord);
     vec3 normal = (texture(TexNormal, fTexCoord).rbg - 0.5) * 2;
-    //vec3 normal = texture(TexNormal, fTexCoord).rbg;
     float depth = texture(TexDepthStencil, fTexCoord).r;
 
     vec4 tmp = p3d_ProjectionMatrixInverse * vec4(fPos_clip.x, fPos_clip.y, (depth * 2 - 1.0), 1.0);
@@ -56,9 +55,11 @@ void main()
     float att = 1.0 / (PointLight.attenuation.x
       + PointLight.attenuation.y * ldistance
       + PointLight.attenuation.z * ldistance * ldistance);
+    //float spec = 1.0;
+    float spec = texture(TexSpecular, fTexCoord).r;
 
     vec4 diffuse = PointLight.color * max(dot(ldir, normal), 0.0);
-    vec4 specular = PointLight.specular * pow(max(dot(lhalf, normal), 0.0), 64);
+    vec4 specular = spec * PointLight.specular * pow(max(dot(lhalf, normal), 0.0), 64);
     vec4 color = att * albedo * (diffuse + specular);
 
     //fColor = vec4(1.0, 0.0, 0.2, 1.0);
