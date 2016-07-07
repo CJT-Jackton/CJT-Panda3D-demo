@@ -12,9 +12,9 @@ layout (location = 2) out vec4 TexSpecular;
 //layout (location = 3) out vec4 TexIrradiance;
 //layout (location = 4) out vec4 TexDepthStencil;
 
-uniform sampler2D p3d_Texture0;
-uniform sampler2D p3d_Texture1;
-uniform sampler2D p3d_Texture2;
+uniform sampler2D p3d_Texture0; // Diffuse texture
+uniform sampler2D p3d_Texture1; // Normal mapping
+uniform sampler2D p3d_Texture2; // Specular texture
 
 uniform mat3 p3d_ViewMatrix;
 
