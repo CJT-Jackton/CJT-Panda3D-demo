@@ -67,9 +67,12 @@ class ShadowMapping(ShowBase):
         self.tex['Final'] = Texture()
         # Shadow depth texture
         self.tex['Shadow'] = Texture()
-        self.tex['Shadow'].setFormat(Texture.FDepthComponent32)
-        self.tex['Shadow'].setMagfilter(Texture.FTShadow)
-        self.tex['Shadow'].setMinfilter(Texture.FTShadow)
+        self.tex['Shadow'].setFormat(Texture.FDepthComponent16)
+        self.tex['Shadow'].setMagfilter(Texture.FTNearest) #FTShadow
+        self.tex['Shadow'].setMinfilter(Texture.FTNearest) #FTShadow
+        self.tex['Shadow'].setWrapU(Texture.WMBorderColor)
+        self.tex['Shadow'].setWrapV(Texture.WMBorderColor)
+        self.tex['Shadow'].setBorderColor(LVecBase4f(1.0, 1.0, 1.0, 1.0))
 
         self.texScale = LVecBase2f(1.0, 1.0)
         self.tranSStoVS = self.calTranSStoVS()
@@ -91,6 +94,7 @@ class ShadowMapping(ShowBase):
 
         self.cam.node().getLens().setNear(1.0)
         self.cam.node().getLens().setFar(500.0)
+        self.cam.node().getLens().setFov(90)
         lens = self.cam.node().getLens()
 
         self.modelMask = 1
@@ -101,6 +105,10 @@ class ShadowMapping(ShowBase):
         self.adLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.adLightMask)
         self.psLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.psLightMask)
 
+        sunLen = OrthographicLens()
+        sunLen.setFilmSize(50, 50)
+        self.shadowCam = self.makeCamera(self.shadowBuffer, lens = sunLen, scene = render, mask = self.modelMask)
+
         self.cam.node().setActive(0)
 
         self.adLightCam.node().getDisplayRegion(0).setSort(1)
@@ -109,6 +117,7 @@ class ShadowMapping(ShowBase):
         self.gBufferCam.node().getDisplayRegion(0).disableClears()
         self.adLightCam.node().getDisplayRegion(0).disableClears()
         self.psLightCam.node().getDisplayRegion(0).disableClears()
+        self.shadowCam.node().getDisplayRegion(0).disableClears()
         self.cam.node().getDisplayRegion(0).disableClears()
         self.cam2d.node().getDisplayRegion(0).disableClears()
         self.gBuffer.disableClears()
@@ -121,6 +130,7 @@ class ShadowMapping(ShowBase):
         self.gBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
         self.lightBuffer.setClearColorActive(1)
         self.lightBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
+        self.shadowBuffer.setClearDepthActive(1)
 
         tmpnode = NodePath(PandaNode("tmp node"))
         tmpnode.setShader(self.shaders['gBuffer'])
@@ -160,6 +170,9 @@ class ShadowMapping(ShowBase):
         self.SetModels()
         self.SetLights()
         self.SetKeys()
+
+        print self.cam.node().getLens().getFov().x
+        print self.cam.node().getLens().getFov().y
 
         self.taskMgr.add(self.updateCamera, "Update Camera")
 
@@ -231,7 +244,7 @@ class ShadowMapping(ShowBase):
             self.accept('%s-up' % key, self.push_key, [key, 0])
         self.accept('1', self.set_card, [self.tex['DepthStencil']])
         self.accept('2', self.set_card, [self.tex['Diffuse']])
-        self.accept('3', self.set_card, [self.tex['Normal']])
+        self.accept('3', self.set_card, [self.tex['Shadow']])
         self.accept('4', self.set_card, [self.tex['Specular']])
         self.accept('5', self.set_card, [self.tex['Final']])
         self.accept('escape', __import__('sys').exit, [0])
