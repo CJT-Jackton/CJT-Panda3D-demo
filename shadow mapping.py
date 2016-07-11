@@ -106,8 +106,24 @@ class ShadowMapping(ShowBase):
         self.psLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.psLightMask)
 
         sunLen = OrthographicLens()
-        sunLen.setFilmSize(50, 50)
-        self.shadowCam = self.makeCamera(self.shadowBuffer, lens = sunLen, scene = render, mask = self.modelMask)
+        sunLen.setFilmSize(100, 50) # FilmSize = (Right - Left, Top - Bottom)
+        #self.shadowCam = self.makeCamera(self.shadowBuffer, lens = sunLen, scene = render, mask = self.modelMask)
+        self.shadowCam = NodePath(Camera("shadowCam"))
+        self.shadowCam.node().setLens(sunLen)
+        self.shadowCam.node().setScene(render)
+        self.shadowCam.node().setCameraMask(self.modelMask)
+        self.camList.append(self.shadowCam)
+        dr = self.shadowBuffer.makeDisplayRegion((0, 1, 0, 1))
+        dr.setSort(0)
+        dr.setClearDepthActive(1)
+        dr.setCamera(self.shadowCam)
+
+        self.shadowCam.setPos(0, 0, 0)
+        self.shadowCam.lookAt(-1, -0.75, -4.52)
+        self.shadowCam.node().getLens().setNearFar(-85, 5)
+        print self.shadowCam.getMat() # View Matrix
+        print self.shadowCam.node().getLens().getProjectionMat() # Projection Matrix
+        print self.shadowCam.node().getLens().getProjectionMat() * self.shadowCam.getMat()
 
         self.cam.node().setActive(0)
 
@@ -135,6 +151,10 @@ class ShadowMapping(ShowBase):
         tmpnode = NodePath(PandaNode("tmp node"))
         tmpnode.setShader(self.shaders['gBuffer'])
         self.gBufferCam.node().setInitialState(tmpnode.getState())
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['shadowMapping'])
+        self.shadowCam.node().setInitialState(tmpnode.getState())
 
         tmpnode = NodePath(PandaNode("tmp node"))
         tmpnode.setShaderInput("texScale", self.texScale)
@@ -171,9 +191,6 @@ class ShadowMapping(ShowBase):
         self.SetLights()
         self.SetKeys()
 
-        print self.cam.node().getLens().getFov().x
-        print self.cam.node().getLens().getFov().y
-
         self.taskMgr.add(self.updateCamera, "Update Camera")
 
     def SetShaders(self):
@@ -190,6 +207,8 @@ class ShadowMapping(ShowBase):
             Shader.SLGLSL, "shaders/spotlight_vert.glsl", "shaders/spotlight_frag.glsl")
         self.shaders['skybox'] = Shader.load(
         	Shader.SLGLSL, "shaders/skybox_vert.glsl", "shaders/skybox_frag.glsl")
+        self.shaders['shadowMapping'] = Shader.load(
+            Shader.SLGLSL, "shaders/shadow_mapping_vert.glsl", "shaders/shadow_mapping_frag.glsl")
 
     def SetLights(self):
     	self.ambientLight = self.adLightCam.attachNewNode(AmbientLight("ambientLight"))
@@ -200,7 +219,7 @@ class ShadowMapping(ShowBase):
 
         self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
         self.sunLight.node().setColor((1.0, 1.0, 0.85, 1.0))
-        self.sunLight.node().setDirection(LVecBase3f(-1, -1, -0.52))
+        self.sunLight.node().setDirection(LVecBase3f(-1, -0.75, -4.52))
         self.sunLight.setShader(self.shaders['dLight'])
         self.SetupDirectionalLight(self.sunLight)
         self.quad.instanceTo(self.sunLight)
