@@ -106,7 +106,7 @@ class ShadowMapping(ShowBase):
         self.psLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.psLightMask)
 
         sunLen = OrthographicLens()
-        sunLen.setFilmSize(100, 50) # FilmSize = (Right - Left, Top - Bottom)
+        sunLen.setFilmSize(150, 150) # FilmSize = (Right - Left, Top - Bottom)
         #self.shadowCam = self.makeCamera(self.shadowBuffer, lens = sunLen, scene = render, mask = self.modelMask)
         self.shadowCam = NodePath(Camera("shadowCam"))
         self.shadowCam.node().setLens(sunLen)
@@ -120,10 +120,8 @@ class ShadowMapping(ShowBase):
 
         self.shadowCam.setPos(0, 0, 0)
         self.shadowCam.lookAt(-1, -0.75, -4.52)
-        self.shadowCam.node().getLens().setNearFar(-85, 5)
-        print self.shadowCam.getMat() # View Matrix
-        print self.shadowCam.node().getLens().getProjectionMat() # Projection Matrix
-        print self.shadowCam.node().getLens().getProjectionMat() * self.shadowCam.getMat()
+        #self.shadowCam.lookAt(-1, -0.75, 0.0)
+        self.shadowCam.node().getLens().setNearFar(-90, 20)
 
         self.cam.node().setActive(0)
 
@@ -278,6 +276,41 @@ class ShadowMapping(ShowBase):
         dLight.setShaderInput("DirectionalLight.color", dLight.node().getColor())
         dLight.setShaderInput("DirectionalLight.specular", dLight.node().getSpecularColor())
         dLight.setShaderInput("DirectionalLight.position", dLight.node().getDirection())
+        # Shadow
+        dLight.setShaderInput("DirectionalLight.shadowMap", self.tex['Shadow'])
+        dLight.setShaderInput("light", self.shadowCam)
+        gaussCoef = PTA_float()
+        gaussCoef.push_back(1)
+        gaussCoef.push_back(4)
+        gaussCoef.push_back(7)
+        gaussCoef.push_back(4)
+        gaussCoef.push_back(1)
+
+        gaussCoef.push_back(4)
+        gaussCoef.push_back(16)
+        gaussCoef.push_back(26)
+        gaussCoef.push_back(16)
+        gaussCoef.push_back(4)
+
+        gaussCoef.push_back(7)
+        gaussCoef.push_back(26)
+        gaussCoef.push_back(41)
+        gaussCoef.push_back(26)
+        gaussCoef.push_back(7)
+
+        gaussCoef.push_back(4)
+        gaussCoef.push_back(16)
+        gaussCoef.push_back(26)
+        gaussCoef.push_back(16)
+        gaussCoef.push_back(4)
+
+        gaussCoef.push_back(1)
+        gaussCoef.push_back(4)
+        gaussCoef.push_back(7)
+        gaussCoef.push_back(4)
+        gaussCoef.push_back(1)
+
+        dLight.setShaderInput("GaussCoef", gaussCoef)
         dLight.hide(BitMask32(self.modelMask | self.psLightMask))
 
     def SetupPointLight(self, pLight):
