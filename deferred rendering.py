@@ -11,6 +11,7 @@ loadPrcFileData('', 'window-title CJT Deferred Rendering Demo')
 loadPrcFileData('', 'win-size 1280 720')
 loadPrcFileData('', 'sync-video false')
 loadPrcFileData('', 'show-frame-rate-meter true')
+loadPrcFileData('', 'textures-power-2 none')
 loadPrcFileData('', 'texture-anisotropic-degree 16')
 loadPrcFileData('', 'texture-minfilter linear-mipmap-linear')
 loadPrcFileData('', 'cursor-hidden true')
@@ -37,7 +38,8 @@ class DeferredRendering(ShowBase):
         ShowBase.__init__(self)
         self.win.setClearColor(LVecBase4(0.0, 0.0, 0.0, 1))
 
-        self.camera.setPos(0, -15, 5)
+        self.camera.setPos(-3.5, 1.5, 5)
+        self.camera.setHpr(90, 0, 0)
 
         self.disableMouse()
         self.recenterMouse()
@@ -62,8 +64,7 @@ class DeferredRendering(ShowBase):
         #self.tex['Irradiance'] = Texture()
         self.tex['Final'] = Texture()
 
-        self.texScale = LVecBase2f(self.calTexScale(self.win.getProperties().getXSize()),
-                                   self.calTexScale(self.win.getProperties().getYSize()))
+        self.texScale = LVecBase2f(1.0, 1.0)
         self.tranSStoVS = self.calTranSStoVS()
 
         self.gBuffer.addRenderTexture(self.tex['DepthStencil'],
@@ -80,6 +81,7 @@ class DeferredRendering(ShowBase):
 
         self.cam.node().getLens().setNear(1.0)
         self.cam.node().getLens().setFar(500.0)
+        self.cam.node().getLens().setFov(90)
         lens = self.cam.node().getLens()
 
         self.modelMask = 1
@@ -200,7 +202,7 @@ class DeferredRendering(ShowBase):
         self.pointLight.node().setAttenuation((1.0, 0.7, 1.8))
         self.pointLight_ph.setShader(self.shaders['pLight'])
         self.pointLight_ph.setShaderInput("TexScale", self.texScale)
-        self.pointLight_ph.setShaderInput("TranSStoVS", self.tranSStoVS)
+        #self.pointLight_ph.setShaderInput("TranSStoVS", self.tranSStoVS)
         self.pointLight_ph.setShaderInput("PointLight.color", self.pointLight.node().getColor())
         self.pointLight_ph.setShaderInput("PointLight.specular", self.pointLight.node().getSpecularColor())
         self.pointLight_ph.setShaderInput("PointLight.position", LVecBase4f(self.pointLight_ph.getPos(), 1.0))
@@ -210,18 +212,39 @@ class DeferredRendering(ShowBase):
         radius = self.calLightRadius(self.pointLight)
         self.pointLight.setScale(radius, radius, radius)
 
-        self.spotlight = self.lightRoot.attachNewNode(Spotlight("spotlight"))
-        self.spotlight.node().setColor((5.0, 5.5, 0.2, 1.0))
-        self.spotlight.node().setSpecularColor((1.0, 1.0, 0.0, 1.0))
-        self.spotlight.node().setAttenuation((1.0, 0.7, 1.8))
-        self.pointLight.setPos((0, 0, 0))
-        self.spotlight.node().getLens().setFov(30)
-        self.spotlight.node().getLens().setViewVector(1, 0, 0, 0, 0, 1)
+        #self.spotlight = self.lightRoot.attachNewNode(Spotlight("spotlight"))
+        #self.spotlight.node().setColor((5.0, 5.5, 0.2, 1.0))
+        #self.spotlight.node().setSpecularColor((1.0, 1.0, 0.0, 1.0))
+        #self.spotlight.node().setAttenuation((1.0, 0.7, 1.8))
+        #self.pointLight.setPos((0, 0, 0))
+        #self.spotlight.node().getLens().setFov(30)
+        #self.spotlight.node().getLens().setViewVector(1, 0, 0, 0, 0, 1)
         #self.spotlight.setShader(self.shaders['sLight'])
-        self.SetupSpotlight(self.spotlight)
+        #self.SetupSpotlight(self.spotlight)
         #self.cone.instanceTo(self.spotlight)
-        self.calSpotlightScale(self.spotlight)
+        #self.calSpotlightScale(self.spotlight)
 
+        self.spotlight_ph = self.lightRoot.attachNewNode(PandaNode("spotlight placeholder"))
+        self.spotlight = self.spotlight_ph.attachNewNode(Spotlight("spotlight"))
+        self.spotlight.node().setColor((5.0, 5.5, 5.2, 1.0))
+        self.spotlight.node().setSpecularColor((1.0, 1.0, 1.0, 1.0))
+        self.spotlight.node().setAttenuation((1.0, 0.7, 1.8))
+        self.spotlight_ph.setPos((-1, 0, 0.1))
+        self.spotlight_ph.setHpr(-90, 0, -90)
+        self.spotlight.node().getLens().setFov(30)
+        cosCutOff = math.cos(30 * math.pi / 360)
+       #self.spotlight.node().getLens().setViewVector(1, 0, 0, 0, 0, 1)
+        self.spotlight_ph.setShader(self.shaders['sLight'])
+        self.spotlight_ph.setShaderInput("Spotlight.color", self.spotlight.node().getColor())
+        self.spotlight_ph.setShaderInput("Spotlight.specular", self.spotlight.node().getSpecularColor())
+        self.spotlight_ph.setShaderInput("Spotlight.position", LVecBase4f(self.spotlight_ph.getPos(), 1.0))
+        self.spotlight_ph.setShaderInput("Spotlight.spotDirection", LVecBase3f(0.0, 1.0, 0.0))
+        self.spotlight_ph.setShaderInput("Spotlight.spotCosCutoff", cosCutOff)
+        self.spotlight_ph.setShaderInput("Spotlight.attenuation", self.spotlight.node().getAttenuation())
+        self.spotlight_ph.hide(BitMask32(self.modelMask | self.adLightMask))
+        #self.SetupSpotlight(self.spotlight)
+        self.cone.instanceTo(self.spotlight)
+        self.calSpotlightScale(self.spotlight)
 
     def SetModels(self):
         self.modelRoot = NodePath(PandaNode("model root"))
