@@ -4,9 +4,7 @@ in vec4 fPos;
 
 layout (location = 0) out vec4 fColor;
 
-uniform mat4 p3d_ViewMatrixInverse;
 uniform mat4 p3d_ViewMatrix;
-uniform mat4 p3d_ModelViewMatrixInverse;
 uniform mat4 p3d_ProjectionMatrixInverse;
 
 uniform sampler2D TexDepthStencil;
@@ -14,8 +12,7 @@ uniform sampler2D TexDiffuse;
 uniform sampler2D TexNormal;
 uniform sampler2D TexSpecular;
 //uniform sampler2D gIrradiance;
-uniform vec2 texScale;
-uniform vec4 TranSStoVS;
+
 uniform struct p3d_LightSourceParameters {
     vec4 color;
     vec4 specular;
@@ -26,10 +23,12 @@ uniform struct p3d_LightSourceParameters {
 void main()
 {
     vec3 fPos_clip = fPos.xyz / fPos.w;
-    vec2 fTexCoord = (fPos_clip.xy * 0.5 + 0.5) * texScale;
+    vec2 fTexCoord = fPos_clip.xy * 0.5 + 0.5;
 
     vec4 albedo = texture(TexDiffuse, fTexCoord);
-    vec3 normal = (texture(TexNormal, fTexCoord).rbg - 0.5) * 2;
+    vec3 normal = texture(TexNormal, fTexCoord).rbg * 2 - 1.0;
+    //float spec = 1.0;
+    float spec = texture(TexSpecular, fTexCoord).r;
     float depth = texture(TexDepthStencil, fTexCoord).r;
 
     vec4 tmp = p3d_ProjectionMatrixInverse * vec4(fPos_clip.x, fPos_clip.y, (depth * 2 - 1.0), 1.0);
@@ -55,13 +54,10 @@ void main()
     float att = 1.0 / (PointLight.attenuation.x
       + PointLight.attenuation.y * ldistance
       + PointLight.attenuation.z * ldistance * ldistance);
-    //float spec = 1.0;
-    float spec = texture(TexSpecular, fTexCoord).r;
 
     vec4 diffuse = PointLight.color * max(dot(ldir, normal), 0.0);
     vec4 specular = spec * PointLight.specular * pow(max(dot(lhalf, normal), 0.0), 64);
     vec4 color = att * albedo * (diffuse + specular);
 
-    //fColor = vec4(1.0, 0.0, 0.2, 1.0);
     fColor = color;
 }
