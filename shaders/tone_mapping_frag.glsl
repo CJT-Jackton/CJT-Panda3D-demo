@@ -55,6 +55,6 @@ vec3 Filmic(vec3 color_hdr)
 
 void main()
 {
-    vec3 color_hdr = texture(gHDR, fTexCoord).rgb;
+    vec3 color_hdr = texture(TexHDR, fTexCoord).rgb;
     fColor = vec4(Jim_Richard(color_hdr), 1.0);
 }
