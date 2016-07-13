@@ -27,7 +27,7 @@ uniform struct p3d_LightSourceParameters{
 
 const vec2 texScale = vec2(1.0 / 1024.0, 1.0 / 1024.0);
 
-uniform float GaussCoef[25];
+//uniform float GaussCoef[25];
 
 void main()
 {
@@ -54,7 +54,7 @@ void main()
     //float bias = max(0.005 * (1.0 - dot(normal, -direction)), 0.0005);
     //float shadow = fPos_light.z < fDepth_light + bias? 1.0 : 0.0;
     //shadow = fPos_light.z > 1.0 ? 0.0 : shadow;
-    float shadow = 0.0;
+    /*float shadow = 0.0;
 
     for(int x = -2; x <= 2; ++x)
     {
@@ -66,7 +66,8 @@ void main()
     	}
     }
 
-    shadow /= 273.0;
+    shadow /= 273.0;*/
+    float shadow = 1.0;
 
     vec4 diffuse = DirectionalLight.color * max(dot(-direction, normal), 0.0);
     vec4 color = albedo * diffuse * shadow;
