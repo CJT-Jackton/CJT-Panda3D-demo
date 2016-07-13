@@ -18,14 +18,6 @@ uniform sampler2D p3d_Texture2; // Specular texture
 
 uniform mat3 p3d_ViewMatrix;
 
-const float NEAR = 1.0f; // Projection matrix's near plane distance
-const float FAR = 500.0f; // Projection matrix's far plane distance
-float LinearizeDepth(float depth)
-{
-    float z = depth * 2.0 - 1.0; // Back to NDC 
-    return (2.0 * NEAR * FAR) / (FAR + NEAR - z * (FAR - NEAR));	
-}
-
 void main()
 {
     TexDiffuse = texture(p3d_Texture0, fTexCoord0);
@@ -38,5 +30,6 @@ void main()
     TexNormal.rbg = (TangentMatrix * normalize(fNormal)) * 0.5 + 0.5;
     TexNormal.a = 1.0;
 
-    TexSpecular = texture(p3d_Texture2, fTexCoord0);
+    TexSpecular.rgb = texture(p3d_Texture2, fTexCoord0).rgb;
+    TexSpecular.a = 1.0;
 }
