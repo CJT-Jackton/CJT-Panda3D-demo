@@ -21,7 +21,6 @@ uniform mat4 p3d_ModelViewMatrix;
 
 void main()
 {
-    //fNormal = transpose(inverse(mat3(p3d_ModelMatrix))) * p3d_Normal;
     vec3 fNormal = normalize(p3d_NormalMatrix * p3d_Normal);
     vec3 fTangent = normalize(p3d_NormalMatrix * p3d_Tangent);
     vec3 fBinormal = normalize(p3d_NormalMatrix * p3d_Binormal);
