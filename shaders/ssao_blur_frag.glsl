@@ -2,13 +2,11 @@
 
 in vec2 fTexCoord;
 
-layout (location = 0) out vec4 TexSSAOBlurred;
-
-uniform vec2 texScale;
+layout (location = 0) out float TexSSAOBlurred;
 
 uniform sampler2D TexSSAONoisy;
 
-const vec2 ScreenSize = vec2(1280.0, 720.0);
+uniform ivec2 ScreenSize = ivec2(1280, 720);
 
 void main()
 {
@@ -19,11 +17,11 @@ void main()
         for(int y = -2; y < 2; ++y)
         {
             vec2 offset = vec2(x, y) / ScreenSize; 
-            Blurred += texture(TexSSAONoisy, (fTexCoord + offset) * texScale).r;
+            Blurred += texture(TexSSAONoisy, (fTexCoord + offset)).r;
         }
     }
 
     Blurred = Blurred / (4.0 * 4.0);
 
-    TexSSAOBlurred = vec4(Blurred, Blurred, Blurred, 1.0);
+    TexSSAOBlurred = Blurred;
 }
