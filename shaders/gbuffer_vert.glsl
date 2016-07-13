@@ -10,14 +10,12 @@ in vec3 p3d_Binormal;
 //out vec3 fNormal;
 out vec2 fTexCoord0;
 out vec2 fTexCoord1;
-out vec4 fPos_view;
 out mat3 TangentMatrix;
 
 uniform mat3 p3d_NormalMatrix;
 // This is the upper 3x3 of the inverse transpose of the ModelViewMatrix.  It is used
 // to transform the normal vector into view-space coordinates.
 uniform mat4 p3d_ModelViewProjectionMatrix;
-uniform mat4 p3d_ModelViewMatrix;
 
 void main()
 {
@@ -29,8 +27,6 @@ void main()
 
     fTexCoord0 = p3d_MultiTexCoord0;
     fTexCoord1 = p3d_MultiTexCoord1;
-
-    fPos_view = p3d_ModelViewMatrix * vec4(p3d_Vertex.xyz, 1.0);
 
     gl_Position = p3d_ModelViewProjectionMatrix * p3d_Vertex;
 }
