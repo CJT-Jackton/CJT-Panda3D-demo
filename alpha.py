@@ -67,8 +67,6 @@ class Game(ShowBase):
 
         self.recenterMouse()
 
-        self.skyTex = loader.loadCubeMap("textures/skybox/Twilight_#.jpg")
-
         self.taskMgr.add(self.updateCamera, "Update Camera")
 
     def InitRenderPipeline(self):
@@ -138,7 +136,10 @@ class Game(ShowBase):
             self.InitBufferSSAOBlur()
         #elif Game.Ambient_Occlusion == 2:
         self.InitBufferLight()
+        self.InitBufferSkybox()
         self.InitBufferWin()
+
+        self.buffers['skybox'].shareDepthBuffer(self.buffers['gBuffer'])
 
     def InitBufferGBuffer(self):
     # g-Buffer
@@ -368,8 +369,38 @@ class Game(ShowBase):
         tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
         self.bufferCam['light_PS'].node().setInitialState(tmpnode.getState())
 
+    def InitBufferSkybox(self):
+        self.buffers['skybox'] = self.makeFBO("skybox", 0)
+        self.buffers['skybox'].setSort(6)
+
+        self.InitBufferSkyboxTex()
+        self.InitBufferSkyboxCam()
+
+        self.buffers['skybox'].addRenderTexture(self.bufferTex['Skybox'],
+            GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
+
+        self.buffers['skybox'].setClearColorActive(1)
+        self.buffers['skybox'].setClearColor(LVecBase4f(0.0, 0.0, 0.0, 1.0))
+
+    def InitBufferSkyboxTex(self):
+        self.bufferTex['Skybox'] = Texture()
+
+        self.skyTex = self.loader.loadCubeMap("textures/skybox/Highnoon_#.jpg")
+
+    def InitBufferSkyboxCam(self):
+        self.bufferCam['skybox'] = self.makeCamera(
+            self.buffers['skybox'], lens = self.camLens, scene = self.render, mask = self.mask['skybox'])
+
+        self.bufferCam['skybox'].node().getDisplayRegion(0).disableClears()
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['skybox'])
+        tmpnode.setShaderInput("TexSkybox", self.skyTex)
+        tmpnode.setAttrib(DepthTestAttrib.make(RenderAttrib.MLessEqual))
+        self.bufferCam['skybox'].node().setInitialState(tmpnode.getState())
+
     def InitBufferWin(self):
-        self.win.setSort(6)
+        self.win.setSort(7)
 
         self.InitBufferWinCam()
 
@@ -515,6 +546,9 @@ class Game(ShowBase):
 
         # 天空盒
         self.skybox = self.loader.loadModel("models/misc/skybox")
+        self.skybox.reparentTo(self.camera)
+        self.skybox.hide(BitMask32.allOn())
+        self.skybox.show(BitMask32(self.mask['skybox']))
 
     def InitKeysBinding(self):
         self.keys = {}
@@ -525,7 +559,7 @@ class Game(ShowBase):
             self.accept('%s-up' % key, self.push_key, [key, 0])
 
         # Debug
-        self.accept('1', self.set_card, [self.bufferTex['DepthStencil']])
+        self.accept('1', self.set_card, [self.bufferTex['Skybox']])
         self.accept('2', self.set_card, [self.bufferTex['Diffuse']])
         self.accept('3', self.set_card, [self.bufferTex['Normal']])
         self.accept('4', self.set_card, [self.bufferTex['Specular']])
@@ -602,7 +636,6 @@ class Game(ShowBase):
         Y = deltaTime * Game.Camera_Speed * (self.keys['w'] - self.keys['s'])
 
         self.camera.setPos(self.camera, -X, Y, 0)
-        self.updateSkybox()
 
         if base.mouseWatcherNode.hasMouse():
             mpos = base.mouseWatcherNode.getMouse()  # get the mouse position
@@ -619,9 +652,6 @@ class Game(ShowBase):
             self.camera.setHpr(newHpr)
 
         return Task.cont
-
-    def updateSkybox(self):
-    	self.skybox.setPos(self.camera.getPos())
 
     def push_key(self, key, value):
     	self.keys[key] = value
