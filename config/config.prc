@@ -71,7 +71,7 @@ screenshot-extension png
 
 texture-magfilter linear
 texture-minfilter linear
-texture-anisotropic-degree 16
+texture-anisotropic-degree 1
 
 # This specifies a global quality level for all textures
 #texture-quality-level fastest
