@@ -10,128 +10,28 @@
 from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
 from direct.task.Task import Task
+from src import *
 import sys
 import os
 import math
+import random
 
 # 加载配置文件
 loadPrcFile("config/config.prc")
 
-class MyAmbientLight(PandaNode):
-# 自定义环境光光源
-    def __init__(self, name, quad):
-        PandaNode.__init__(self, name)
-        self.NodePath = NodePath(self)
-        self.light_NP = self.NodePath.attachNewNode(AmbientLight("ambientLight"))
-        self.light = self.light_NP.node()
-        self.NodePath.hide(BitMask32.allOn())
-        self.NodePath.show(BitMask32(Game.Mask['quad']))
-        quad.instanceTo(self.light_NP)
-
-    def initShaderInput(self):
-    # 设置 shader 中的参数
-        self.NodePath.setShaderInput("AmbientLight.color", self.light.getColor())
-
-class MyDirectionalLight(PandaNode):
-# 自定义平行光光源
-    def __init__(self, name, quad):
-        PandaNode.__init__(self, name)
-        self.NodePath = NodePath(self)
-        self.light_NP = self.NodePath.attachNewNode(DirectionalLight("directionalLight"))
-        self.light = self.light_NP.node()
-        self.NodePath.hide(BitMask32.allOn())
-        self.NodePath.show(BitMask32(Game.Mask['quad']))
-        quad.instanceTo(self.light_NP)
-
-    def initShaderInput(self):
-    # 设置 shader 中的参数
-        self.NodePath.setShaderInput("DirectionalLight.color", self.light.getColor())
-        self.NodePath.setShaderInput("DirectionalLight.specular", self.light.getSpecularColor())
-        self.NodePath.setShaderInput("DirectionalLight.position", self.light.getDirection())
-
-class MyPointLight(PandaNode):
-# 自定义点光源
-    def __init__(self, name, sphere):
-        PandaNode.__init__(self, name)
-        self.NodePath = NodePath(self)
-        self.light_NP = self.NodePath.attachNewNode(PointLight("point light"))
-        self.light = self.light_NP.node()
-        self.NodePath.hide(BitMask32.allOn())
-        self.NodePath.show(BitMask32(Game.Mask['light-volume']))
-        sphere.instanceTo(self.light_NP)
-
-    def initShaderInput(self):
-    # 设置 shader 中的参数
-        self.NodePath.setShaderInput("PointLight.color", self.light.getColor())
-        self.NodePath.setShaderInput("PointLight.specular", self.light.getSpecularColor())
-        self.NodePath.setShaderInput("PointLight.position", LVecBase4f(self.NodePath.getPos(), 1.0))
-        self.NodePath.setShaderInput("PointLight.attenuation", self.light.getAttenuation())
-
-    def calScale(self):
-    # 根据光源衰减计算光实际体积大小
-        color = self.light.getColor()
-        intensity = max(color.x, color.y, color.z)
-
-        attenuation = self.light.getAttenuation()
-        constant = attenuation.x
-        linear = attenuation.y
-        quadratic = attenuation.z
-
-        radius = (-linear + math.sqrt(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * intensity))) \
-                 / (2 * quadratic)
-        self.light_NP.setScale(radius, radius, radius)
-
-class MySpotlight(PandaNode):
-# 自定义聚光灯
-    def __init__(self, name, cone):
-        PandaNode.__init__(self, name)
-        self.NodePath = NodePath(self)
-        self.light_NP = self.NodePath.attachNewNode(Spotlight("spotlight"))
-        self.light = self.light_NP.node()
-        self.NodePath.hide(BitMask32.allOn())
-        self.NodePath.show(BitMask32(Game.Mask['light-volume']))
-        cone.instanceTo(self.light_NP)
-
-    def initShaderInput(self):
-    # 设置 shader 中的参数
-        self.NodePath.setShaderInput("Spotlight.color", self.light.getColor())
-        self.NodePath.setShaderInput("Spotlight.specular", self.light.getSpecularColor())
-        self.NodePath.setShaderInput("Spotlight.position", LVecBase4f(self.NodePath.getPos(), 1.0))
-        self.NodePath.setShaderInput("Spotlight.spotDirection", )
-        self.NodePath.setShaderInput("Spotlight.spotCosCutoff", self.cosCutOff)
-        self.NodePath.setShaderInput("Spotlight.attenuation", self.light.getAttenuation())
-
-    def calRadius(self):
-    # 根据光源衰减计算光实际半径大小
-        color = self.light.getColor()
-        intensity = max(color.x, color.y, color.z)
-
-        attenuation = self.light.getAttenuation()
-        constant = attenuation.x
-        linear = attenuation.y
-        quadratic = attenuation.z
-
-        radius = (-linear + math.sqrt(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * intensity))) \
-                 / (2 * quadratic)
-        return radius
-
-    def calScale(self):
-    # 根据光源衰减计算光实际体积大小
-        FOV = self.light.getLens().getFov().x
-        FOV_rad = FOV * math.pi / 360
-        self.cosCutOff = math.cos(FOV_rad)
-        radius = self.calRadius()
-
-        scale_x = radius * 2 * math.sin(FOV_rad) / math.sqrt(3)
-        scale_z = radius * 2 * math.cos(FOV_rad)
-        scale_y = scale_x
-        self.light_NP.setScale(scale_x, scale_y, scale_z)
-
-# The game
 class Game(ShowBase):
     # 窗口大小
     Win_Size_X = 0
     Win_Size_Y = 0
+
+    # 纹理过滤质量
+    # 1 - 双线性过滤
+    # 2 - 三线性过滤
+    # 3 - 各向异性过滤 2x
+    # 4 - 各向异性过滤 4x
+    # 5 - 各向异性过滤 8x
+    # 6 - 各向异性过滤 16x
+    Texture_Filter = 6
 
     # 阴影质量
     # 0 - 关闭
@@ -161,145 +61,25 @@ class Game(ShowBase):
     # 镜头移动速度
     Camera_Speed = 25
 
-    # Camera masks
-    Mask = {
-        # 全部不透明模型
-        'model': 1,
-        # 屏幕大小的四边形
-        'quad': 2,
-        # 光体积
-        'light-volume': 4,
-        # 天空盒
-        'skybox': 8
-    }
-
     def __init__(self):
         ShowBase.__init__(self)
-        self.win.setClearColor(LVecBase4f(0.0, 0.0, 0.0, 1.0))
-        self.InitCamera()
-        self.InitGameVar()
+        self.InitRenderPipeline()
 
-        #self.camera.setPos(-3.5, 1.5, 5)
-        #self.camera.setHpr(90, 0, 0)
-
-        #self.disableMouse()
         self.recenterMouse()
-
-        self.InitShaders()
-
-        # Setup buffers
-        self.gBuffer = self.makeFBO("G-Buffer", 2)
-        self.lightBuffer = self.makeFBO("Light Buffer", 0)
-
-        self.gBuffer.setSort(1)
-        self.lightBuffer.setSort(2)
-        self.win.setSort(3)
-
-        # G-Buffer render texture
-        self.tex = {}
-        self.tex['DepthStencil'] = Texture()
-        self.tex['DepthStencil'].setFormat(Texture.FDepthStencil)
-        self.tex['Diffuse'] = Texture()
-        self.tex['Normal'] = Texture()
-        self.tex['Specular'] = Texture()
-        #self.tex['Irradiance'] = Texture()
-        self.tex['Final'] = Texture()
-
-        self.texScale = LVecBase2f(1.0, 1.0)
-        self.tranSStoVS = self.calTranSStoVS()
-
-        self.gBuffer.addRenderTexture(self.tex['DepthStencil'],
-        	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPDepthStencil)
-        self.gBuffer.addRenderTexture(self.tex['Diffuse'],
-        	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
-        self.gBuffer.addRenderTexture(self.tex['Normal'],
-        	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPAuxRgba0)
-        self.gBuffer.addRenderTexture(self.tex['Specular'],
-            GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPAuxRgba1)
-
-        self.lightBuffer.addRenderTexture(self.tex['Final'],
-        	GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
-
-        #self.cam.node().getLens().setNear(1.0)
-        #self.cam.node().getLens().setFar(500.0)
-        #self.cam.node().getLens().setFov(90)
-        #self.camLens.setNearFar(1.0, 500.0)
-        #self.camLens.setFov(90)
-        lens = self.cam.node().getLens()
-
-        self.modelMask = 1
-        self.adLightMask = 2
-        self.psLightMask = 4
-
-        self.gBufferCam = self.makeCamera(self.gBuffer, lens = lens, scene = render, mask = self.modelMask)
-        self.adLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.adLightMask)
-        self.psLightCam = self.makeCamera(self.lightBuffer, lens = lens, scene = render, mask = self.psLightMask)
-
-        self.cam.node().setActive(0)
-
-        self.adLightCam.node().getDisplayRegion(0).setSort(1)
-        self.psLightCam.node().getDisplayRegion(0).setSort(2)
-
-        self.gBufferCam.node().getDisplayRegion(0).disableClears()
-        self.adLightCam.node().getDisplayRegion(0).disableClears()
-        self.psLightCam.node().getDisplayRegion(0).disableClears()
-        self.cam.node().getDisplayRegion(0).disableClears()
-        self.cam2d.node().getDisplayRegion(0).disableClears()
-        self.gBuffer.disableClears()
-        self.win.disableClears()
-
-        self.gBuffer.setClearColorActive(1)
-        self.gBuffer.setClearDepthActive(1)
-        self.gBuffer.setClearActive(GraphicsOutput.RTPAuxRgba0, 1)
-        self.gBuffer.setClearActive(GraphicsOutput.RTPAuxRgba1, 1)
-        self.gBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
-        self.lightBuffer.setClearColorActive(1)
-        self.lightBuffer.setClearColor((0.0, 0.0, 0.0, 1.0))
-
-        tmpnode = NodePath(PandaNode("tmp node"))
-        tmpnode.setShader(self.shaders['gBuffer'])
-        self.gBufferCam.node().setInitialState(tmpnode.getState())
-
-        tmpnode = NodePath(PandaNode("tmp node"))
-        tmpnode.setShaderInput("texScale", self.texScale)
-        tmpnode.setShaderInput("TexDepthStencil", self.tex['DepthStencil'])
-        tmpnode.setShaderInput("TexDiffuse", self.tex['Diffuse'])
-        tmpnode.setShaderInput("TexNormal", self.tex['Normal'])
-        tmpnode.setShaderInput("TexSpecular", self.tex['Specular'])
-        tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
-        tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
-        self.adLightCam.node().setInitialState(tmpnode.getState())
-
-        tmpnode = NodePath(PandaNode("tmp node"))
-        tmpnode.setShaderInput("texScale", self.texScale)
-        tmpnode.setShaderInput("TexDepthStencil", self.tex['DepthStencil'])
-        tmpnode.setShaderInput("TexDiffuse", self.tex['Diffuse'])
-        tmpnode.setShaderInput("TexNormal", self.tex['Normal'])
-        tmpnode.setShaderInput("TexSpecular", self.tex['Specular'])
-        tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
-        tmpnode.setAttrib(CullFaceAttrib.make(CullFaceAttrib.MCullCounterClockwise))
-        tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
-        self.psLightCam.node().setInitialState(tmpnode.getState())
-
-        render.setState(RenderState.makeEmpty())
-
-        # debug
-        self.card = self.lightBuffer.getTextureCard()
-        self.card.setTexture(self.tex['Final'])
-        self.card.reparentTo(render2d)
 
         self.skyTex = loader.loadCubeMap("textures/skybox/Twilight_#.jpg")
 
-        self.makeQuad()
-        self.InitModels()
-        #self.SetLights()
-        self.InitLights()
-        self.SetKeys()
-
-        #self.quad.setTexture(self.tex['Final'])
-        #self.quad.reparentTo(render2d)
-
         self.taskMgr.add(self.updateCamera, "Update Camera")
+
+    def InitRenderPipeline(self):
+        self.InitCamera()
+        self.InitGameVariable()
+        self.InitMasks()
+        self.InitShaders()
+        self.InitBuffers()
+        self.InitModels()
+        self.InitLights()
+        self.InitKeysBinding()
 
     def InitCamera(self):
         self.disableMouse()
@@ -309,9 +89,20 @@ class Game(ShowBase):
         self.camLens.setNearFar(1.0, 500.0)
         self.camLens.setFov(90)
 
-    def InitGameVar(self):
+    def InitGameVariable(self):
         Game.Win_Size_X = self.win.getProperties().getXSize()
         Game.Win_Size_Y = self.win.getProperties().getYSize()
+
+        if Game.Texture_Filter == 2:
+            loadPrcFileData('', 'texture-minfilter linear-mipmap-linear')
+        elif Game.Texture_Filter == 3:
+            loadPrcFileData('', 'texture-anisotropic-degree 2')
+        elif Game.Texture_Filter == 4:
+            loadPrcFileData('', 'texture-anisotropic-degree 4')
+        elif Game.Texture_Filter == 5:
+            loadPrcFileData('', 'texture-anisotropic-degree 8')
+        elif Game.Texture_Filter == 6:
+            loadPrcFileData('', 'texture-anisotropic-degree 16')
 
         if Game.Shadow_Quality == 1:
             Game.Shadow_Map_Size = 512
@@ -320,6 +111,19 @@ class Game(ShowBase):
         elif Game.Shadow_Quality == 3:
             Game.Shadow_Map_Size = 2048
 
+    def InitMasks(self):
+    # Camera masks
+        self.mask = {
+            # 全部不透明模型
+            'model': 1,
+            # 屏幕大小的四边形
+            'quad': 2,
+            # 光体积
+            'light-volume': 4,
+            # 天空盒
+            'skybox': 8
+        }
+
     def InitBuffers(self):
     # Initialize off screen buffers
         self.buffers = {}
@@ -327,6 +131,14 @@ class Game(ShowBase):
         self.bufferCam = {}
 
         self.InitBufferGBuffer()
+        if Game.Shadow_Quality != 0:
+            self.InitBufferShadow()
+        if Game.Ambient_Occlusion == 1:
+            self.InitBufferSSAONoise()
+            self.InitBufferSSAOBlur()
+        #elif Game.Ambient_Occlusion == 2:
+        self.InitBufferLight()
+        self.InitBufferWin()
 
     def InitBufferGBuffer(self):
     # g-Buffer
@@ -350,7 +162,7 @@ class Game(ShowBase):
         self.buffers['gBuffer'].setClearDepthActive(1)
         self.buffers['gBuffer'].setClearActive(GraphicsOutput.RTPAuxRgba0, 1)
         self.buffers['gBuffer'].setClearActive(GraphicsOutput.RTPAuxRgba1, 1)
-        self.buffers['gBuffer'].setClearColor((0.0, 0.0, 0.0, 1.0))
+        self.buffers['gBuffer'].setClearColor(LVecBase4f(0.0, 0.0, 0.0, 1.0))
 
     def InitBufferGBufferTex(self):
         self.bufferTex['DepthStencil'] = Texture()
@@ -362,13 +174,214 @@ class Game(ShowBase):
 
     def InitBufferGBufferCam(self):
         self.bufferCam['gBuffer'] = self.makeCamera(
-            self.buffers['gBuffer'], lens = self.camLens, scene = self.render, mask = Game.Mask['model'])
+            self.buffers['gBuffer'], lens = self.camLens, scene = self.render, mask = self.mask['model'])
 
         self.bufferCam['gBuffer'].node().getDisplayRegion(0).disableClears()
 
         tmpnode = NodePath(PandaNode("tmp node"))
         tmpnode.setShader(self.shaders['gBuffer'])
         self.bufferCam['gBuffer'].node().setInitialState(tmpnode.getState())
+
+    def InitBufferShadow(self):
+    # Shadow buffer
+        self.buffers['shadow'] = self.makeShadowFBO("Shadow Buffer", Game.Shadow_Map_Size)
+        self.buffers['shadow'].setSort(2)
+
+        self.InitBufferShadowTex()
+        self.InitBufferShadowCam()
+
+        self.buffers['shadow'].addRenderTexture(self.bufferTex['Shadow'],
+            GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPDepth)
+
+        self.buffers['shadow'].setClearDepthActive(1)
+
+    def InitBufferShadowTex(self):
+        self.bufferTex['Shadow'] = Texture()
+        self.bufferTex['Shadow'].setFormat(Texture.FDepthComponent16)
+        self.bufferTex['Shadow'].setMagfilter(Texture.FTNearest)  # FTShadow
+        self.bufferTex['Shadow'].setMinfilter(Texture.FTNearest)  # FTShadow
+        self.bufferTex['Shadow'].setWrapU(Texture.WMBorderColor)
+        self.bufferTex['Shadow'].setWrapV(Texture.WMBorderColor)
+        self.bufferTex['Shadow'].setBorderColor(LVecBase4f(1.0, 1.0, 1.0, 1.0))
+
+    def InitBufferShadowCam(self):
+        orthoLen = OrthographicLens()
+        orthoLen.setFilmSize(150, 150)
+        self.bufferCam['shadow'] = NodePath(Camera("shadowCam"))
+        self.bufferCam['shadow'].node().setLens(orthoLen)
+        self.bufferCam['shadow'].node().setScene(self.render)
+        self.bufferCam['shadow'].node().setCameraMask(self.mask['model'])
+        self.camList.append(self.bufferCam['shadow'])
+        dr = self.buffers['shadow'].makeDisplayRegion((0, 1, 0, 1))
+        dr.setSort(0)
+        dr.setClearDepthActive(1)
+        dr.setCamera(self.bufferCam['shadow'])
+
+        self.bufferCam['shadow'].setPos(0, 0, 0)
+        self.bufferCam['shadow'].lookAt(-1, -0.75, -4.52)
+        self.bufferCam['shadow'].node().getLens().setNearFar(-90, 20)
+
+        self.bufferCam['shadow'].node().getDisplayRegion(0).disableClears()
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['shadow_mapping'])
+        self.bufferCam['shadow'].node().setInitialState(tmpnode.getState())
+
+    def InitBufferSSAONoise(self):
+    # SSAO Noise pass buffer
+        self.buffers['SSAONoise'] = self.makeFBO("SSAO Noise Buffer", 0)
+        self.buffers['SSAONoise'].setSort(3)
+
+        self.InitBufferSSAONoiseTex()
+        self.InitBufferSSAONoiseCam()
+
+        self.buffers['SSAONoise'].addRenderTexture(self.bufferTex['SSAONoisy'],
+            GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
+
+        self.buffers['SSAONoise'].setClearColorActive(1)
+        self.buffers['SSAONoise'].setClearColor(LVecBase4f(1.0, 1.0, 1.0, 1.0))
+
+    def InitBufferSSAONoiseTex(self):
+        self.bufferTex['SSAONoisy'] = Texture()
+        self.bufferTex['SSAONoisy'].setFormat(Texture.FRed)
+
+        # 生成一个4x4的随机噪声贴图
+        noise = PNMImage(4, 4)
+        for i in range(4):
+            for j in range(4):
+                noise.setXel(i, j, LVecBase3f(random.random() * 2 - 1, random.random() * 2 - 1, 0.0))
+
+        self.bufferTex['SSAOnoise'] = Texture()
+        self.bufferTex['SSAOnoise'].load(noise)
+        self.bufferTex['SSAOnoise'].setFormat(Texture.FRgb16)
+        self.bufferTex['SSAOnoise'].setMagfilter(Texture.FTNearest)
+        self.bufferTex['SSAOnoise'].setMinfilter(Texture.FTNearest)
+        self.bufferTex['SSAOnoise'].setWrapU(Texture.WMRepeat)
+        self.bufferTex['SSAOnoise'].setWrapV(Texture.WMRepeat)
+
+    def InitBufferSSAONoiseCam(self):
+        self.bufferCam['SSAONoise'] = self.makeCamera(
+            self.buffers['SSAONoise'], lens = self.camLens, scene = self.render, mask = self.mask['quad'])
+
+        self.bufferCam['SSAONoise'].node().getDisplayRegion(0).disableClears()
+
+        SSAOsamples = PTA_LVecBase4f()
+        for i in range(64):
+            # sample = LVecBase3f(random.random() * 2 - 1, random.random() * 2 - 1, random.random())
+            sample = LVecBase3f(random.uniform(-1.0, 1.0), random.uniform(-1.0, 1.0), random.uniform(0.0, 1.0))
+            sample_length = math.sqrt(sample.x * sample.x + sample.y * sample.y + sample.z * sample.z)
+            sample /= sample_length
+            sample *= random.random()
+            sample = sample * 0.5 + 0.5
+            scale = float(i) / 64.0
+            scale = 0.1 + 0.9 * (scale * scale)
+            sample *= scale
+            SSAOsamples.push_back(UnalignedLVecBase4f(sample.x, sample.y, sample.z, 0.0))
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['SSAONoise'])
+        tmpnode.setShaderInput("texScaleNoise", LVecBase2f(Game.Win_Size_X / 4.0, Game.Win_Size_Y / 4.0))
+        tmpnode.setShaderInput("TexDepthStencil", self.bufferTex['DepthStencil'])
+        tmpnode.setShaderInput("TexNormal", self.bufferTex['Normal'])
+        tmpnode.setShaderInput("TexNoise", self.bufferTex['SSAOnoise'])
+        tmpnode.setShaderInput("NEAR", self.camLens.getNear())
+        tmpnode.setShaderInput("FAR", self.camLens.getFar())
+        tmpnode.setShaderInput("samples", SSAOsamples)
+        self.bufferCam['SSAONoise'].node().setInitialState(tmpnode.getState())
+
+    def InitBufferSSAOBlur(self):
+    # SSAO blur pass buffer
+        self.buffers['SSAOBlur'] = self.makeFBO("SSAO Blur Buffer", 0)
+        self.buffers['SSAOBlur'].setSort(4)
+
+        self.InitBufferSSAOBlurTex()
+        self.InitBufferSSAOBlurCam()
+
+        self.buffers['SSAOBlur'].addRenderTexture(self.bufferTex['SSAOBlur'],
+                GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
+
+        self.buffers['SSAOBlur'].setClearColorActive(1)
+        self.buffers['SSAOBlur'].setClearColor(LVecBase4f(1.0, 1.0, 1.0, 1.0))
+
+    def InitBufferSSAOBlurTex(self):
+        self.bufferTex['SSAOBlur'] = Texture()
+        self.bufferTex['SSAOBlur'].setFormat(Texture.FRed)
+
+    def InitBufferSSAOBlurCam(self):
+        self.bufferCam['SSAOBlur'] = self.makeCamera(
+            self.buffers['SSAOBlur'], lens = self.camLens, scene = self.render, mask = self.mask['quad'])
+
+        self.bufferCam['SSAOBlur'].node().getDisplayRegion(0).disableClears()
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShader(self.shaders['SSAOBlur'])
+        tmpnode.setShaderInput("TexSSAONoisy", self.bufferTex['SSAONoisy'])
+        tmpnode.setShaderInput("ScreenSize", LVecBase2i(Game.Win_Size_X, Game.Win_Size_X))
+        self.bufferCam['SSAOBlur'].node().setInitialState(tmpnode.getState())
+
+    def InitBufferLight(self):
+    # Lighting calculation buffer
+        self.buffers['light'] = self.makeFBO("Light Buffer", 0)
+        self.buffers['light'].setSort(5)
+
+        self.InitBufferLightTex()
+        self.InitBufferLightCam()
+
+        self.buffers['light'].addRenderTexture(self.bufferTex['Light'],
+            GraphicsOutput.RTMBindOrCopy, GraphicsOutput.RTPColor)
+
+        self.buffers['light'].setClearColorActive(1)
+        self.buffers['light'].setClearColor(LVecBase4f(0.0, 0.0, 0.0, 1.0))
+
+    def InitBufferLightTex(self):
+        self.bufferTex['Light'] = Texture()
+
+    def InitBufferLightCam(self):
+        self.bufferCam['light_AD'] = self.makeCamera(
+            self.buffers['light'], lens = self.camLens, scene = self.render, mask = self.mask['quad'])
+        self.bufferCam['light_PS'] = self.makeCamera(
+            self.buffers['light'], lens = self.camLens, scene = self.render, mask = self.mask['light-volume'])
+
+        self.bufferCam['light_AD'].node().getDisplayRegion(0).setSort(1)
+        self.bufferCam['light_PS'].node().getDisplayRegion(0).setSort(2)
+        self.bufferCam['light_AD'].node().getDisplayRegion(0).disableClears()
+        self.bufferCam['light_PS'].node().getDisplayRegion(0).disableClears()
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShaderInput("TexDepthStencil", self.bufferTex['DepthStencil'])
+        tmpnode.setShaderInput("TexDiffuse", self.bufferTex['Diffuse'])
+        tmpnode.setShaderInput("TexNormal", self.bufferTex['Normal'])
+        tmpnode.setShaderInput("TexSpecular", self.bufferTex['Specular'])
+        if Game.Shadow_Quality != 0:
+            tmpnode.setShaderInput("light", self.bufferCam['shadow'])
+        tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
+        tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
+        self.bufferCam['light_AD'].node().setInitialState(tmpnode.getState())
+
+        tmpnode = NodePath(PandaNode("tmp node"))
+        tmpnode.setShaderInput("TexDepthStencil", self.bufferTex['DepthStencil'])
+        tmpnode.setShaderInput("TexDiffuse", self.bufferTex['Diffuse'])
+        tmpnode.setShaderInput("TexNormal", self.bufferTex['Normal'])
+        tmpnode.setShaderInput("TexSpecular", self.bufferTex['Specular'])
+        tmpnode.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd, ColorBlendAttrib.OOne, ColorBlendAttrib.OOne))
+        tmpnode.setAttrib(CullFaceAttrib.make(CullFaceAttrib.MCullCounterClockwise))
+        tmpnode.setAttrib(DepthWriteAttrib.make(DepthWriteAttrib.MOff))
+        self.bufferCam['light_PS'].node().setInitialState(tmpnode.getState())
+
+    def InitBufferWin(self):
+        self.win.setSort(6)
+
+        self.InitBufferWinCam()
+
+        self.win.disableClears()
+        self.win.setClearColor(LVecBase4f(0.0, 0.0, 0.0, 1.0))
+
+    def InitBufferWinCam(self):
+        self.cam.node().setActive(0)
+        self.cam.node().getDisplayRegion(0).disableClears()
+        self.cam2d.node().getDisplayRegion(0).disableClears()
+
+        self.render.setState(RenderState.makeEmpty())
 
     def InitShaders(self):
     # Initialize shaders
@@ -387,12 +400,16 @@ class Game(ShowBase):
             Shader.SLGLSL, "shaders/spotlight_vert.glsl", "shaders/spotlight_frag.glsl")
 
         if Game.Shadow_Quality != 0:
+            self.shaders['directional_light'] = Shader.load(
+                Shader.SLGLSL, "shaders/directional_light_vert.glsl", "shaders/directional_light_shadow_frag.glsl")
             self.shaders['shadow_mapping'] = Shader.load(
                 Shader.SLGLSL, "shaders/shadow_mapping_vert.glsl", "shaders/shadow_mapping_frag.glsl")
 
         if Game.Ambient_Occlusion != 0:
             if Game.Ambient_Occlusion == 1:
             # SSAO
+                self.shaders['ambient_light'] = Shader.load(
+                    Shader.SLGLSL, "shaders/ambient_light_vert.glsl", "shaders/ambient_light_ao_frag.glsl")
                 self.shaders['SSAONoise'] = Shader.load(
                     Shader.SLGLSL, "shaders/ssao_noise_vert.glsl", "shaders/ssao_noise_frag.glsl")
                 self.shaders['SSAOBlur'] = Shader.load(
@@ -421,21 +438,27 @@ class Game(ShowBase):
                     Shader.SLGLSL, "shaders/smaa_neighborhood_vert.glsl", "shaders/smaa_neighborhood_frag.glsl")
 
     def InitLights(self):
-    #初始化光源
-        self.ambientLight = MyAmbientLight("ambientLight", self.quad)
+    # 初始化光源
+        self.ambientLight = IWAmbientLight("ambientLight", self.quad)
         self.ambientLight.light.setColor(LVecBase4f(0.37, 0.37, 0.43, 1.0))
         self.ambientLight.NodePath.setShader(self.shaders['ambient_light'])
         self.ambientLight.initShaderInput()
-        self.ambientLight.NodePath.reparentTo(self.adLightCam)
+        if Game.Ambient_Occlusion != 0:
+            self.ambientLight.NodePath.setShaderInput("TexAO", self.bufferTex['SSAOBlur'])
+        self.ambientLight.NodePath.reparentTo(self.quadRoot)
 
-        self.sunLight = MyDirectionalLight("sunLight", self.quad)
+        self.sunLight = IWDirectionalLight("sunLight", self.quad)
         self.sunLight.light.setColor(LVecBase4f(1.0, 1.0, 0.85, 1.0))
         self.sunLight.light.setDirection(LVecBase3f(-1, -1, -0.52))
         self.sunLight.NodePath.setShader(self.shaders['directional_light'])
         self.sunLight.initShaderInput()
-        #self.sunLight.NodePath.reparentTo(self.adLightCam)
+        if Game.Shadow_Quality != 0:
+            self.sunLight.NodePath.setShaderInput("light", self.bufferCam['shadow'])
+            self.sunLight.NodePath.setShaderInput("DirectionalLight.shadowMap", self.bufferTex['Shadow'])
+            self.sunLight.NodePath.setShaderInput("shadowMapScale", LVecBase2f(1.0 / Game.Shadow_Map_Size))
+        self.sunLight.NodePath.reparentTo(self.quadRoot)
 
-        self.pointLight = MyPointLight("pointLight", self.sphere)
+        self.pointLight = IWPointLight("pointLight", self.sphere)
         self.pointLight.light.setColor(LVecBase4f(5.0, 5.0, 1.2, 1.0))
         self.pointLight.light.setSpecularColor(LVecBase4f(5.0, 5.0, 2.5, 1.0))
         self.pointLight.NodePath.setPos(LVecBase3f(15, 0, 1))
@@ -445,90 +468,16 @@ class Game(ShowBase):
         self.pointLight.calScale()
         self.pointLight.NodePath.reparentTo(self.lightVolumeRoot)
 
-    def SetLights(self):
-    	self.ambientLight = self.adLightCam.attachNewNode(AmbientLight("ambientLight"))
-        self.ambientLight.node().setColor((0.37, 0.37, 0.43, 1.0))
-        self.ambientLight.setShader(self.shaders['ambient_light'])
-        self.SetupAmbientLight(self.ambientLight)
-        self.quad.instanceTo(self.ambientLight)
-
-        self.sunLight = self.adLightCam.attachNewNode(DirectionalLight("sunLight"))
-        self.sunLight.node().setColor((1.0, 1.0, 0.85, 1.0))
-        self.sunLight.node().setDirection(LVecBase3f(-1, -1, -0.52))
-        self.sunLight.setShader(self.shaders['directional_light'])
-        self.SetupDirectionalLight(self.sunLight)
-        #self.quad.instanceTo(self.sunLight)
-
-        #self.pointLight = self.lightVolumeRoot.attachNewNode(PointLight("pointLight"))
-        #self.pointLight.node().setColor((5.0, 5.0, 1.2, 1.0))
-        #self.pointLight.node().setSpecularColor((5.0, 5.0, 2.5, 1.0))
-        #self.pointLight.setPos((15, 2, 1))
-        #self.pointLight.node().setAttenuation((1.0, 0.7, 1.8))
-        #self.pointLight.setShader(self.shaders['pLight'])
-        #self.SetupPointLight(self.pointLight)
-        #self.sphere.instanceTo(self.pointLight)
-        #radius = self.calLightRadius(self.pointLight)
-        #self.pointLight.setScale(radius, radius, radius)
-
-        self.pointLight_ph = self.lightVolumeRoot.attachNewNode(PandaNode("pointLight placeholder"))
-        self.pointLight = self.pointLight_ph.attachNewNode(PointLight("pointLight"))
-        self.pointLight.node().setColor((5.0, 5.0, 1.2, 1.0))
-        self.pointLight.node().setSpecularColor((5.0, 5.0, 2.5, 1.0))
-        self.pointLight_ph.setPos((15, 0, 1))
-        self.pointLight.node().setAttenuation((1.0, 0.7, 1.8))
-        self.pointLight_ph.setShader(self.shaders['point_light'])
-        self.pointLight_ph.setShaderInput("TexScale", self.texScale)
-        #self.pointLight_ph.setShaderInput("TranSStoVS", self.tranSStoVS)
-        self.pointLight_ph.setShaderInput("PointLight.color", self.pointLight.node().getColor())
-        self.pointLight_ph.setShaderInput("PointLight.specular", self.pointLight.node().getSpecularColor())
-        self.pointLight_ph.setShaderInput("PointLight.position", LVecBase4f(self.pointLight_ph.getPos(), 1.0))
-        self.pointLight_ph.setShaderInput("PointLight.attenuation", self.pointLight.node().getAttenuation())
-        #self.pointLight_ph.hide(BitMask32(self.modelMask | self.adLightMask))
-        self.pointLight_ph.hide(BitMask32.allOn())
-        self.pointLight_ph.show(BitMask32(Game.Mask['light-volume']))
-        self.sphere.instanceTo(self.pointLight)
-        radius = self.calLightRadius(self.pointLight)
-        self.pointLight_ph.setScale(radius, radius, radius)
-
-        #self.spotlight = self.lightVolumeRoot.attachNewNode(Spotlight("spotlight"))
-        #self.spotlight.node().setColor((5.0, 5.5, 0.2, 1.0))
-        #self.spotlight.node().setSpecularColor((1.0, 1.0, 0.0, 1.0))
-        #self.spotlight.node().setAttenuation((1.0, 0.7, 1.8))
-        #self.pointLight.setPos((0, 0, 0))
-        #self.spotlight.node().getLens().setFov(30)
-        #self.spotlight.node().getLens().setViewVector(1, 0, 0, 0, 0, 1)
-        #self.spotlight.setShader(self.shaders['sLight'])
-        #self.SetupSpotlight(self.spotlight)
-        #self.cone.instanceTo(self.spotlight)
-        #self.calSpotlightScale(self.spotlight)
-
-        self.spotlight_ph = self.lightVolumeRoot.attachNewNode(PandaNode("spotlight placeholder"))
-        self.spotlight = self.spotlight_ph.attachNewNode(Spotlight("spotlight"))
-        self.spotlight.node().setColor((5.0, 5.5, 5.2, 1.0))
-        self.spotlight.node().setSpecularColor((1.0, 1.0, 1.0, 1.0))
-        self.spotlight.node().setAttenuation((1.0, 0.7, 1.8))
-        self.spotlight_ph.setPos((-1, 0, 0.1))
-        self.spotlight_ph.setHpr(-90, 0, -90)
-        self.spotlight.node().getLens().setFov(30)
-        cosCutOff = math.cos(30 * math.pi / 360)
-       #self.spotlight.node().getLens().setViewVector(1, 0, 0, 0, 0, 1)
-        self.spotlight_ph.setShader(self.shaders['spotlight'])
-        self.spotlight_ph.setShaderInput("Spotlight.color", self.spotlight.node().getColor())
-        self.spotlight_ph.setShaderInput("Spotlight.specular", self.spotlight.node().getSpecularColor())
-        self.spotlight_ph.setShaderInput("Spotlight.position", LVecBase4f(self.spotlight_ph.getPos(), 1.0))
-        self.spotlight_ph.setShaderInput("Spotlight.spotDirection", LVecBase3f(0.0, 1.0, 0.0))
-        self.spotlight_ph.setShaderInput("Spotlight.spotCosCutoff", cosCutOff)
-        self.spotlight_ph.setShaderInput("Spotlight.attenuation", self.spotlight.node().getAttenuation())
-        self.spotlight_ph.hide(BitMask32(self.modelMask | self.adLightMask))
-        #self.SetupSpotlight(self.spotlight)
-        self.cone.instanceTo(self.spotlight)
-        self.calSpotlightScale(self.spotlight)
-
     def InitModels(self):
         # 初始化模型根节点
         self.InitModelRoots()
         # 加载杂项模型
         self.InitModelMisc()
+
+        # 将最后的结果显示在一个屏幕大小的四边形上
+        self.finalQuad = self.render2d.attachNewNode(PandaNode("finalQuad"))
+        self.quad.instanceTo(self.finalQuad)
+        self.finalQuad.setTexture(self.bufferTex['Light'])
 
         self.sponza = self.loader.loadModel("models/sponza/sponza.bam")
         self.sponza.reparentTo(self.modelRoot)
@@ -539,58 +488,81 @@ class Game(ShowBase):
         self.modelRoot = NodePath(PandaNode("model root"))
         self.modelRoot.reparentTo(self.render)
         self.modelRoot.hide(BitMask32.allOn())
-        self.modelRoot.show(BitMask32(Game.Mask['model']))
+        self.modelRoot.show(BitMask32(self.mask['model']))
+
+        # 全部满屏幕四边形的根节点
+        self.quadRoot = NodePath(PandaNode("quad root"))
+        self.quadRoot.reparentTo(self.camera)
+        self.quadRoot.hide(BitMask32.allOn())
+        self.quadRoot.show(BitMask32(self.mask['quad']))
 
         # 全部有体积的光源（点光源/聚光灯）的根节点
         self.lightVolumeRoot = NodePath(PandaNode("light root"))
         self.lightVolumeRoot.reparentTo(self.render)
         self.lightVolumeRoot.hide(BitMask32.allOn())
-        self.lightVolumeRoot.show(BitMask32(Game.Mask['light-volume']))
+        self.lightVolumeRoot.show(BitMask32(self.mask['light-volume']))
 
     def InitModelMisc(self):
+        # 屏幕大小四边形
+        self.quad = self.makeQuad()
+        self.quad.reparentTo(self.quadRoot)
+
         # 球体（点光源）
-        self.sphere = self.loader.loadModel("models/sphere")
+        self.sphere = self.loader.loadModel("models/misc/sphere")
 
         # 光椎（聚光灯）
-        self.cone = self.loader.loadModel("models/cone")
+        self.cone = self.loader.loadModel("models/misc/cone")
 
         # 天空盒
-        self.skybox = self.loader.loadModel("models/skybox")
+        self.skybox = self.loader.loadModel("models/misc/skybox")
 
-    def SetKeys(self):
+    def InitKeysBinding(self):
         self.keys = {}
+
         for key in ['w', 'a', 's', 'd']:
             self.keys[key] = 0
             self.accept(key, self.push_key, [key, 1])
             self.accept('%s-up' % key, self.push_key, [key, 0])
-        self.accept('1', self.set_card, [self.tex['DepthStencil']])
-        self.accept('2', self.set_card, [self.tex['Diffuse']])
-        self.accept('3', self.set_card, [self.tex['Normal']])
-        self.accept('4', self.set_card, [self.tex['Specular']])
-        self.accept('5', self.set_card, [self.tex['Final']])
+
+        # Debug
+        self.accept('1', self.set_card, [self.bufferTex['DepthStencil']])
+        self.accept('2', self.set_card, [self.bufferTex['Diffuse']])
+        self.accept('3', self.set_card, [self.bufferTex['Normal']])
+        self.accept('4', self.set_card, [self.bufferTex['Specular']])
+        if Game.Shadow_Quality != 0:
+            self.accept('4', self.set_card, [self.bufferTex['Shadow']])
+        self.accept('5', self.set_card, [self.bufferTex['Light']])
+
         self.accept('escape', __import__('sys').exit, [0])
 
     def makeQuad(self):
-        # Make a full screen quad.
+    # Make a full screen quad.
         vdata = GeomVertexData("vdata", GeomVertexFormat.getV3t2(),Geom.UHStatic)
         vertex = GeomVertexWriter(vdata, 'vertex')
         texcoord = GeomVertexWriter(vdata, 'texcoord')
-        vertex.addData3f(-1, 0, 1)
-        texcoord.addData2f(0, 1)
 
+        # vertex.addData3f(-1, 0, 1)
+        # texcoord.addData2f(0, 1)
+        vertex.addData3f(-1, 0, 3)
+        texcoord.addData2f(0, 2)
+
+        # vertex.addData3f(-1, 0, -1)
+        # texcoord.addData2f(0, 0)
         vertex.addData3f(-1, 0, -1)
         texcoord.addData2f(0, 0)
 
-        vertex.addData3f(1, 0, -1)
-        texcoord.addData2f(1, 0)
+        # vertex.addData3f(1, 0, -1)
+        # texcoord.addData2f(1, 0)
+        vertex.addData3f(3, 0, -1)
+        texcoord.addData2f(2, 0)
 
-        vertex.addData3f(1, 0, 1)
-        texcoord.addData2f(1, 1)
+        # vertex.addData3f(1, 0, 1)
+        # texcoord.addData2f(1, 1)
 
         prim = GeomTriangles(Geom.UHStatic)
 
         prim.addVertices(0, 1, 2)
-        prim.addVertices(0, 2, 3)
+        # prim.addVertices(0, 2, 3)
 
         geom = Geom(vdata)
         geom.addPrimitive(prim)
@@ -598,7 +570,7 @@ class Game(ShowBase):
         node = GeomNode('quad')
         node.addGeom(geom)
 
-        self.quad = NodePath(node)
+        return NodePath(node)
 
     def makeFBO(self, name, auxrgba, rgbabit = 8):
     	winprops = WindowProperties()
@@ -613,55 +585,15 @@ class Game(ShowBase):
         	GraphicsPipe.BFRttCumulative | GraphicsPipe.BFRefuseWindow,
         	self.win.getGsg(), self.win)
 
-    def calLightRadius(self, light):
-        color = light.node().getColor()
-        intensity = max(color.x, color.y, color.z)
-
-        attenuation = light.node().getAttenuation()
-        constant = attenuation.x
-        linear = attenuation.y
-        quadratic = attenuation.z
-
-        radius = (-linear + math.sqrt(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * intensity)))\
-            /(2 * quadratic)
-
-        return radius
-
-    def calSpotlightScale(self, spotlight):
-        FOV = spotlight.node().getLens().getFov().x
-        FOV_rad = FOV * math.pi / 360
-        radius = self.calLightRadius(spotlight)
-
-        scale_x = radius * 2 * math.sin(FOV_rad) / math.sqrt(3)
-        scale_z = radius * 2 * math.cos(FOV_rad)
-        scale_y = scale_x
-
-        spotlight.setScale(scale_x, scale_y, scale_z)
-
-    def calTexScale(self, length):
-        pow_of_2 = (0, 1, 2, 4, 8, 16 ,32 ,64, 128, 256, 512, 1024, 2048, 4096)
-
-        if length > 4096 or length < 0:
-            return float(1.0)
-
-        i = 13
-        while pow_of_2[i] >= length and i >= 0:
-            if pow_of_2[i - 1] < length:
-                return float(length) / pow_of_2[i]
-            i -= 1
-
-        return float(1.0)
-
-    def calTranSStoVS(self):
-        # Calculate the transform vector form screen-space to view-space
-        Projection = self.cam.node().getLens().getProjectionMat()
-
-        y = 0.5 * Projection[3][2]
-        x = y / Projection[0][0]
-        z = y / Projection[2][1]
-        w = -0.5 - 0.5 * Projection[1][2]
-
-        return LVecBase4f(x, y, z, w)
+    def makeShadowFBO(self, name, size):
+        winprops = WindowProperties.size(size, size)
+        props = FrameBufferProperties()
+        props.setRgbColor(True)
+        props.setDepthBits(1)
+        return self.graphicsEngine.makeOutput(
+            self.pipe, name, -2, props, winprops,
+            GraphicsPipe.BFRefuseWindow,
+            self.win.getGsg(), self.win)
 
     def updateCamera(self, task):
         deltaTime = globalClock.getDt()  # To get the time (in seconds) since the last frame was drawn
@@ -695,7 +627,7 @@ class Game(ShowBase):
     	self.keys[key] = value
 
     def set_card(self, tex):
-    	self.card.setTexture(tex)
+    	self.finalQuad.setTexture(tex)
 
     def recenterMouse(self):
         self.win.movePointer(0,
