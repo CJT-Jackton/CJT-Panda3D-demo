@@ -3,7 +3,6 @@
 //in vec3 fNormal;
 in vec2 fTexCoord0;
 in vec2 fTexCoord1;
-in vec4 fPos_view;
 in mat3 TangentMatrix;
 
 layout (location = 0) out vec4 TexDiffuse;
@@ -15,8 +14,6 @@ layout (location = 2) out vec4 TexSpecular;
 uniform sampler2D p3d_Texture0; // Diffuse texture
 uniform sampler2D p3d_Texture1; // Normal mapping
 uniform sampler2D p3d_Texture2; // Specular texture
-
-uniform mat3 p3d_ViewMatrix;
 
 void main()
 {
