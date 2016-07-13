@@ -3,9 +3,8 @@
 in vec4 fPos;
 in vec2 fTexCoord;
 
-layout (location = 0) out vec4 TexSSAONoisy;
+layout (location = 0) out float TexSSAONoisy;
 
-uniform vec2 texScale;
 uniform vec2 texScaleNoise;
 
 uniform mat4 p3d_ProjectionMatrix;
@@ -20,8 +19,8 @@ uniform vec4 samples[64];
 int kernelSize = 64;
 float radius = 0.7;
 
-const float NEAR = 1.0; // Projection matrix's near plane distance
-const float FAR = 500.0; // Projection matrix's far plane distance
+uniform float NEAR = 1.0;
+uniform float FAR = 500.0;
 float LinearizeDepth(float depth)
 {
     float z = depth * 2.0 - 1.0;
@@ -30,11 +29,11 @@ float LinearizeDepth(float depth)
 
 void main()
 {
-    float depth = texture(TexDepthStencil, fTexCoord * texScale).a;
+    float depth = texture(TexDepthStencil, fTexCoord).a;
     vec4 tmp = p3d_ProjectionMatrixInverse * vec4((fTexCoord.x * 2 - 1.0), (fTexCoord.y * 2 - 1.0), (depth * 2 - 1.0), 1.0);
     vec3 fPos_view = tmp.xyz / tmp.w;
 
-    vec3 normal = texture(TexNormal, fTexCoord * texScale).rbg * 2 - 1;
+    vec3 normal = texture(TexNormal, fTexCoord).rbg * 2 - 1;
 
     vec3 randomVec = normalize(texture(TexNoise, fTexCoord * texScaleNoise).xyz * 2 - 1.0);
 
@@ -55,25 +54,14 @@ void main()
         offset.xy /= offset.w;
         offset.xy = offset.xy * 0.5 + 0.5;
 
-        float sample_depth = texture(TexDepthStencil, offset.xy * texScale).r;
-        //sample_depth = sample_depth == 0.0 ? FAR: sample_depth;
+        float sample_depth = texture(TexDepthStencil, offset.xy).r;
         sample_depth = -LinearizeDepth(sample_depth);
-        //sample_depth = -(sample_depth * 2 - 1.0);
-        //float sample_depth = texture(TexSpecular, offset.xy * texScale).r * 2.0 - 1.0;
-        //sample_depth *= FAR;
-        //sample_depth = sample_depth == 0.0 ? FAR: sample_depth;
-        //sample_depth = -sample_depth * FAR;
 
-        //float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fPos_view.z - sample_depth));
         float rangeCheck = clamp(radius / abs(fPos_view.z - sample_depth), 0.0, 1.0);
-        //float rangeCheck = 1.0;
-        
-        //if(sample_depth >= sample_view.z)
-        //    AmbientOcclusion += 1.0 * rangeCheck;
+
         AmbientOcclusion += (sample_depth >= sample_view.z? 1.0: 0.0) * rangeCheck;
     }
 
     AmbientOcclusion = 1.0 - (AmbientOcclusion / 64.0);
-
-    TexSSAONoisy = vec4(AmbientOcclusion, AmbientOcclusion, AmbientOcclusion, 1.0);
+    TexSSAONoisy = AmbientOcclusion;
 }
