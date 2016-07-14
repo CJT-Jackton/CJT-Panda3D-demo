@@ -168,9 +168,25 @@ class Game(ShowBase):
     def InitBufferGBufferTex(self):
         self.bufferTex['DepthStencil'] = Texture()
         self.bufferTex['DepthStencil'].setFormat(Texture.FDepthStencil)
+        self.bufferTex['DepthStencil'].setMagfilter(Texture.FTLinear)
+        self.bufferTex['DepthStencil'].setMinfilter(Texture.FTLinear)
+        self.bufferTex['DepthStencil'].setAnisotropicDegree(1)
+
         self.bufferTex['Diffuse'] = Texture()
+        self.bufferTex['Diffuse'].setMagfilter(Texture.FTLinear)
+        self.bufferTex['Diffuse'].setMinfilter(Texture.FTLinear)
+        self.bufferTex['Diffuse'].setAnisotropicDegree(1)
+
         self.bufferTex['Normal'] = Texture()
+        self.bufferTex['Normal'].setMagfilter(Texture.FTLinear)
+        self.bufferTex['Normal'].setMinfilter(Texture.FTLinear)
+        self.bufferTex['Normal'].setAnisotropicDegree(1)
+
         self.bufferTex['Specular'] = Texture()
+        self.bufferTex['Specular'].setMagfilter(Texture.FTLinear)
+        self.bufferTex['Specular'].setMinfilter(Texture.FTLinear)
+        self.bufferTex['Specular'].setAnisotropicDegree(1)
+
         #self.bufferTex['Irradiance'] = Texture()
 
     def InitBufferGBufferCam(self):
@@ -201,6 +217,7 @@ class Game(ShowBase):
         self.bufferTex['Shadow'].setFormat(Texture.FDepthComponent16)
         self.bufferTex['Shadow'].setMagfilter(Texture.FTNearest)  # FTShadow
         self.bufferTex['Shadow'].setMinfilter(Texture.FTNearest)  # FTShadow
+        self.bufferTex['Shadow'].setAnisotropicDegree(1)
         self.bufferTex['Shadow'].setWrapU(Texture.WMBorderColor)
         self.bufferTex['Shadow'].setWrapV(Texture.WMBorderColor)
         self.bufferTex['Shadow'].setBorderColor(LVecBase4f(1.0, 1.0, 1.0, 1.0))
@@ -245,6 +262,9 @@ class Game(ShowBase):
     def InitBufferSSAONoiseTex(self):
         self.bufferTex['SSAONoisy'] = Texture()
         self.bufferTex['SSAONoisy'].setFormat(Texture.FRed)
+        self.bufferTex['SSAONoisy'].setMagfilter(Texture.FTLinear)
+        self.bufferTex['SSAONoisy'].setMinfilter(Texture.FTLinear)
+        self.bufferTex['SSAONoisy'].setAnisotropicDegree(1)
 
         # 生成一个4x4的随机噪声贴图
         noise = PNMImage(4, 4)
@@ -257,6 +277,7 @@ class Game(ShowBase):
         self.bufferTex['SSAOnoise'].setFormat(Texture.FRgb16)
         self.bufferTex['SSAOnoise'].setMagfilter(Texture.FTNearest)
         self.bufferTex['SSAOnoise'].setMinfilter(Texture.FTNearest)
+        self.bufferTex['SSAOnoise'].setAnisotropicDegree(1)
         self.bufferTex['SSAOnoise'].setWrapU(Texture.WMRepeat)
         self.bufferTex['SSAOnoise'].setWrapV(Texture.WMRepeat)
 
@@ -307,6 +328,9 @@ class Game(ShowBase):
     def InitBufferSSAOBlurTex(self):
         self.bufferTex['SSAOBlur'] = Texture()
         self.bufferTex['SSAOBlur'].setFormat(Texture.FRed)
+        self.bufferTex['SSAOBlur'].setMagfilter(Texture.FTLinear)
+        self.bufferTex['SSAOBlur'].setMinfilter(Texture.FTLinear)
+        self.bufferTex['SSAOBlur'].setAnisotropicDegree(1)
 
     def InitBufferSSAOBlurCam(self):
         self.bufferCam['SSAOBlur'] = self.makeCamera(
@@ -336,6 +360,9 @@ class Game(ShowBase):
 
     def InitBufferLightTex(self):
         self.bufferTex['Light'] = Texture()
+        self.bufferTex['Light'].setMagfilter(Texture.FTLinear)
+        self.bufferTex['Light'].setMinfilter(Texture.FTLinear)
+        self.bufferTex['Light'].setAnisotropicDegree(1)
 
     def InitBufferLightCam(self):
         self.bufferCam['light_AD'] = self.makeCamera(
