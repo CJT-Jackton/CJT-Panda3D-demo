@@ -7,7 +7,7 @@
 # ---------- Windows Options ----------
 
 # 窗口标题
-window-title The Game
+window-title Island of Wind
 
 # 默认分辨率
 win-size 1280 720
@@ -37,7 +37,7 @@ screenshot-extension png
 
 # ---------- Graphics Settings ----------
 
-# 纹理过滤等级，决定纹理的清晰程度
+# 纹理过滤质量，决定纹理的清晰程度
 #
 # 1 - 双线性过滤:
 #     texture-magfilter linear
@@ -49,22 +49,22 @@ screenshot-extension png
 #     texture-minfilter linear-mipmap-linear
 #     texture-anisotropic-degree 1
 #
-# 3 - 各向异性过滤 x2:
+# 3 - 各向异性过滤 2x:
 #     texture-magfilter linear
 #     texture-minfilter linear
 #     texture-anisotropic-degree 2
 #
-# 4 - 各向异性过滤 x4:
+# 4 - 各向异性过滤 4x:
 #     texture-magfilter linear
 #     texture-minfilter linear
 #     texture-anisotropic-degree 4
 #
-# 5 - 各向异性过滤 x8:
+# 5 - 各向异性过滤 8x:
 #     texture-magfilter linear
 #     texture-minfilter linear
 #     texture-anisotropic-degree 8
 #
-# 6 - 各向异性过滤 x16:
+# 6 - 各向异性过滤 16x:
 #     texture-magfilter linear
 #     texture-minfilter linear
 #     texture-anisotropic-degree 16
@@ -97,3 +97,10 @@ textures-power-2 none
 
 # 使用硬件自动生成 mipmap
 driver-generate-mipmaps #t
+
+# Better GL performance by not using gl-finish and so on
+gl-finish #f
+gl-force-no-error #t
+gl-check-errors #f
+gl-force-no-flush #t
+gl-force-no-scissor #t
